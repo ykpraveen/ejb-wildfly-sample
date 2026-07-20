@@ -1,0 +1,23 @@
+# WildFly MySQL Datasource Configuration for standalone-full.xml
+# Uses embed-server to modify the XML directly before WildFly starts.
+# The MySQL JDBC driver module must already exist in the filesystem before this runs.
+
+embed-server --std-out=echo --server-config=standalone-full.xml
+
+# Register JDBC driver
+/subsystem=datasources/jdbc-driver=mysql:add(driver-name=mysql,driver-module-name=com.mysql.mysql-connector-j,driver-class-name=com.mysql.cj.jdbc.Driver)
+
+# Add ClinicDS datasource
+/subsystem=datasources/data-source=ClinicDS:add( \
+    jndi-name="java:jboss/datasources/ClinicDS", \
+    connection-url="jdbc:mysql://mysql:3306/clinicdb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC", \
+    driver-name=mysql, \
+    user-name="root", \
+    password="root123", \
+    enabled=true, \
+    statistics-enabled=false, \
+    background-validation=false)
+
+/subsystem=datasources/data-source=ClinicDS/connection-statistics="java:jboss/datasources/ClinicDS":write-attribute(name=statistics-enabled,value=true)
+
+exit

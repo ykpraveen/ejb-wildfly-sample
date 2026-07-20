@@ -1,0 +1,1 @@
+-- Schemas removed: all tables now live in clinicdb

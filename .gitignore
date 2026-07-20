@@ -1,0 +1,55 @@
+# Build artifacts
+target/
+*.class
+*.jar
+*.war
+*.ear
+dependency-reduced-pom.xml
+
+# IDE — IntelliJ
+.idea/
+*.iml
+out/
+
+# IDE — Eclipse
+.project
+.classpath
+.settings/
+.factorypath
+
+# IDE — VS Code
+.vscode/
+
+# IDE — NetBeans
+nb-configuration.xml
+nbproject/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor swap/backup files
+*.swp
+*.swo
+*~
+
+# Docker
+docker-compose.override.yml
+
+# Environment / secrets
+.env
+.env.*
+
+# Logs
+*.log
+hs_err_pid*
+
+# Flyway
+clinic-migration/src/main/resources/db/migration/*.sql~
+
+# Vue / Node (future frontend)
+node_modules/
+dist/
+.vite/
+.env.local

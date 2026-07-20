@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<application xmlns="https://jakarta.ee/xml/ns/jakartaee"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/application_10.xsd"
+             version="10">
+    <display-name>clinic-app</display-name>
+    <module>
+        <web>
+            <web-uri>com.example.clinic-clinic-api-war-1.0.0-SNAPSHOT.war</web-uri>
+            <context-root>/clinic-api</context-root>
+        </web>
+    </module>
+    <module>
+        <ejb>com.example.clinic-clinic-security-1.0.0-SNAPSHOT.jar</ejb>
+    </module>
+    <module>
+        <ejb>com.example.clinic-clinic-user-management-ejb-1.0.0-SNAPSHOT.jar</ejb>
+    </module>
+    <module>
+        <ejb>com.example.clinic-clinic-customer-management-ejb-1.0.0-SNAPSHOT.jar</ejb>
+    </module>
+    <module>
+        <ejb>com.example.clinic-clinic-doctor-management-ejb-1.0.0-SNAPSHOT.jar</ejb>
+    </module>
+    <module>
+        <ejb>com.example.clinic-clinic-schedule-management-ejb-1.0.0-SNAPSHOT.jar</ejb>
+    </module>
+    <module>
+        <ejb>com.example.clinic-clinic-appointment-management-ejb-1.0.0-SNAPSHOT.jar</ejb>
+    </module>
+</application>
