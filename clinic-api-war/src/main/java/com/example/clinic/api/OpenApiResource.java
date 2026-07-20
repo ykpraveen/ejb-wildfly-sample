@@ -69,6 +69,15 @@ public class OpenApiResource {
                 "responses", Map.of("200", Map.of("description", "User activated"))
         )));
 
+        paths.put("/users/{userId}/deactivate", Map.of("patch", Map.of(
+                "summary", "Deactivate a user (ADMIN only)",
+                "tags", List.of("User Management"),
+                "security", List.of(Map.of("bearerAuth", List.of())),
+                "parameters", List.of(pathParam("userId", "integer")),
+                "requestBody", jsonBody("#/components/schemas/ActivateUserRequest"),
+                "responses", Map.of("200", Map.of("description", "User deactivated"))
+        )));
+
         paths.put("/customers", Map.of(
                 "get", Map.of(
                         "summary", "List customers for a clinic",

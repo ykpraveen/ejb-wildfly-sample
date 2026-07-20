@@ -59,6 +59,22 @@ public class UserResource {
         return toPayload(user);
     }
 
+    @PATCH
+    @Path("/{userId}/deactivate")
+    public Map<String, Object> deactivateUser(
+            @PathParam("userId") Long userId,
+            @Valid ActivateUserRequest request,
+            @Context SecurityContext securityContext
+    ) {
+        assertAdmin(securityContext);
+        if (request == null || request.clinicId == null) {
+            throw new BadRequestException("clinicId is required");
+        }
+
+        UserAccount user = userManagementService.deactivateUser(request.clinicId, userId);
+        return toPayload(user);
+    }
+
     @GET
     public List<Map<String, Object>> listUsers(
             @QueryParam("clinicId") Long clinicId,

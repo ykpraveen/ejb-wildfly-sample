@@ -63,6 +63,14 @@ public class UserManagementService {
         return user;
     }
 
+    @Transactional
+    public UserAccount deactivateUser(Long clinicId, Long userId) {
+        UserAccount user = findClinicUser(clinicId, userId);
+        user.setActive(false);
+        user.setUpdatedAt(Instant.now());
+        return user;
+    }
+
     public AuthenticatedUser authenticate(Long clinicId, String username, String rawPassword) {
         if (clinicId == null || username == null || rawPassword == null) {
             throw new BadRequestException("clinicId, username and password are required");
