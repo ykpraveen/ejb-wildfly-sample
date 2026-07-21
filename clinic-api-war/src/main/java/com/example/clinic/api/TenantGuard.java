@@ -1,8 +1,11 @@
 package com.example.clinic.api;
 
+import com.example.clinic.security.JwtPrincipal;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.core.SecurityContext;
+
+import java.security.Principal;
 
 /**
  * Every request carries a clinicId as a query param or request-body field, but a JWT is only ever
@@ -17,8 +20,18 @@ public final class TenantGuard {
         if (requestedClinicId == null) {
             throw new BadRequestException("clinicId is required");
         }
-        if (!(securityContext instanceof TokenSecurityContext tokenContext)
-                || !requestedClinicId.equals(tokenContext.getClinicId())) {
+
+        Long authenticatedClinicId = null;
+        if (securityContext != null) {
+            Principal principal = securityContext.getUserPrincipal();
+            if (principal instanceof JwtPrincipal jwtPrincipal) {
+                authenticatedClinicId = jwtPrincipal.clinicId();
+            } else if (securityContext instanceof TokenSecurityContext tokenContext) {
+                authenticatedClinicId = tokenContext.getClinicId();
+            }
+        }
+
+        if (!requestedClinicId.equals(authenticatedClinicId)) {
             throw new ForbiddenException("clinicId does not match the authenticated clinic");
         }
     }

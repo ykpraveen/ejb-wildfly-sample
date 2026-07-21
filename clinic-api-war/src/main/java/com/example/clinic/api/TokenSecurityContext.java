@@ -16,7 +16,7 @@ public class TokenSecurityContext implements SecurityContext {
 
     @Override
     public Principal getUserPrincipal() {
-        return () -> principal.username();
+        return principal;
     }
 
     public Long getClinicId() {
