@@ -28,6 +28,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -64,9 +65,10 @@ public class AppointmentResource {
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
     public Response bookAppointment(
             @Valid BookAppointmentRequest request,
-            @Context SecurityContext securityContext
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, request.clinicId);
+        TenantGuard.requireClinic(requestContext, request.clinicId);
         enforceCustomerOwnership(securityContext, request.clinicId, request.customerId);
         DoctorSchedule schedule = scheduleManagementService.findById(request.clinicId, request.scheduleId);
         Appointment appointment = appointmentManagementService.bookAppointment(
@@ -91,9 +93,9 @@ public class AppointmentResource {
     @RolesAllowed({"ADMIN", "USER"})
     public List<Map<String, Object>> listAppointments(
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         return appointmentManagementService.listAppointments(clinicId).stream()
                 .map(this::toPayload).toList();
     }
@@ -104,9 +106,10 @@ public class AppointmentResource {
     public Map<String, Object> getAppointment(
             @PathParam("appointmentId") Long appointmentId,
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         Appointment appointment = appointmentManagementService.findById(clinicId, appointmentId);
         enforceCustomerOwnership(securityContext, clinicId, appointment.getCustomerId());
         return toPayload(appointment);
@@ -118,9 +121,10 @@ public class AppointmentResource {
     public List<Map<String, Object>> listAppointmentsByCustomer(
             @PathParam("customerId") Long customerId,
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         enforceCustomerOwnership(securityContext, clinicId, customerId);
         return appointmentManagementService.listAppointmentsByCustomer(clinicId, customerId).stream()
                 .map(this::toPayload).toList();
@@ -132,9 +136,10 @@ public class AppointmentResource {
     public List<Map<String, Object>> listAppointmentsByDoctor(
             @PathParam("doctorId") Long doctorId,
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         enforceDoctorOwnership(securityContext, clinicId, doctorId);
         return appointmentManagementService.listAppointmentsByDoctor(clinicId, doctorId).stream()
                 .map(this::toPayload).toList();
@@ -146,9 +151,10 @@ public class AppointmentResource {
     public Map<String, Object> cancelAppointment(
             @PathParam("appointmentId") Long appointmentId,
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         Appointment existing = appointmentManagementService.findById(clinicId, appointmentId);
         enforceCustomerOwnership(securityContext, clinicId, existing.getCustomerId());
         Appointment appointment = appointmentManagementService.cancelAppointment(clinicId, appointmentId);
@@ -162,9 +168,10 @@ public class AppointmentResource {
             @PathParam("appointmentId") Long appointmentId,
             @Valid RescheduleRequest request,
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         Appointment existing = appointmentManagementService.findById(clinicId, appointmentId);
         enforceCustomerOwnership(securityContext, clinicId, existing.getCustomerId());
         DoctorSchedule schedule = scheduleManagementService.findById(clinicId, existing.getScheduleId());
@@ -182,9 +189,10 @@ public class AppointmentResource {
             @PathParam("appointmentId") Long appointmentId,
             @Valid UpdateAppointmentStatusRequest request,
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         Appointment existing = appointmentManagementService.findById(clinicId, appointmentId);
         enforceDoctorOwnership(securityContext, clinicId, existing.getDoctorId());
         AppointmentStatus status;
@@ -205,9 +213,10 @@ public class AppointmentResource {
     public Response deleteAppointment(
             @PathParam("appointmentId") Long appointmentId,
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         appointmentManagementService.softDelete(clinicId, appointmentId);
         recordAudit(clinicId, securityContext, "APPOINTMENT_DELETED", appointmentId, null);
         return Response.noContent().build();

@@ -17,6 +17,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.SecurityContext;
@@ -39,9 +40,13 @@ public class UserResource {
     private AuditService auditService;
 
     @POST
-    public Map<String, Object> createUser(@Valid CreateUserRequest request, @Context SecurityContext securityContext) {
+    public Map<String, Object> createUser(
+            @Valid CreateUserRequest request,
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
+    ) {
         assertAdmin(securityContext);
-        TenantGuard.requireClinic(securityContext, request.clinicId);
+        TenantGuard.requireClinic(requestContext, request.clinicId);
 
         UserAccount user = userManagementService.createUser(
                 request.clinicId,
@@ -58,10 +63,11 @@ public class UserResource {
     public Map<String, Object> activateUser(
             @PathParam("userId") Long userId,
             @Valid ActivateUserRequest request,
-            @Context SecurityContext securityContext
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
     ) {
         assertAdmin(securityContext);
-        TenantGuard.requireClinic(securityContext, request == null ? null : request.clinicId);
+        TenantGuard.requireClinic(requestContext, request == null ? null : request.clinicId);
 
         UserAccount user = userManagementService.activateUser(request.clinicId, userId);
         recordAudit(request.clinicId, securityContext, "USER_ACTIVATED", userId, null);
@@ -73,10 +79,11 @@ public class UserResource {
     public Map<String, Object> deactivateUser(
             @PathParam("userId") Long userId,
             @Valid ActivateUserRequest request,
-            @Context SecurityContext securityContext
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
     ) {
         assertAdmin(securityContext);
-        TenantGuard.requireClinic(securityContext, request == null ? null : request.clinicId);
+        TenantGuard.requireClinic(requestContext, request == null ? null : request.clinicId);
 
         UserAccount user = userManagementService.deactivateUser(request.clinicId, userId);
         recordAudit(request.clinicId, securityContext, "USER_DEACTIVATED", userId, null);
@@ -86,10 +93,11 @@ public class UserResource {
     @GET
     public List<Map<String, Object>> listUsers(
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
     ) {
         assertAdmin(securityContext);
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         return userManagementService.listUsers(clinicId).stream().map(this::toPayload).toList();
     }
 

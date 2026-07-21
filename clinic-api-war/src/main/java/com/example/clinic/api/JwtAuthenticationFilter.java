@@ -16,6 +16,9 @@ import java.io.IOException;
 @Provider
 @Priority(Priorities.AUTHENTICATION)
 public class JwtAuthenticationFilter implements ContainerRequestFilter {
+    /** Request-scoped property key holding the authenticated principal's clinicId (a Long). */
+    public static final String CLINIC_ID_PROPERTY = "clinicId";
+
     @Inject
     private JwtService jwtService;
 
@@ -46,6 +49,6 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
         }
 
         requestContext.setSecurityContext(new TokenSecurityContext(principal, requestContext.getSecurityContext().isSecure()));
-        requestContext.setProperty("clinicId", principal.clinicId());
+        requestContext.setProperty(CLINIC_ID_PROPERTY, principal.clinicId());
     }
 }

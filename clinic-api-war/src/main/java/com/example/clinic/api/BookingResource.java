@@ -24,6 +24,7 @@ import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -45,8 +46,12 @@ public class BookingResource {
 
     @POST
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
-    public Response startBooking(@Valid StartBookingRequest request, @Context SecurityContext securityContext) {
-        TenantGuard.requireClinic(securityContext, request.clinicId);
+    public Response startBooking(
+            @Valid StartBookingRequest request,
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
+    ) {
+        TenantGuard.requireClinic(requestContext, request.clinicId);
         enforceCustomerOwnership(securityContext, request.clinicId, request.customerId);
         String sessionId = sessionRegistry.createSession();
         BookingSessionBean session = sessionRegistry.getSession(sessionId);
@@ -59,9 +64,13 @@ public class BookingResource {
     @GET
     @Path("/{sessionId}")
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
-    public BookingSummary getSummary(@PathParam("sessionId") String sessionId, @Context SecurityContext securityContext) {
+    public BookingSummary getSummary(
+            @PathParam("sessionId") String sessionId,
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
+    ) {
         BookingSessionBean session = sessionRegistry.getSession(sessionId);
-        return assertSessionAccess(session, sessionId, securityContext);
+        return assertSessionAccess(session, sessionId, securityContext, requestContext);
     }
 
     @PUT
@@ -69,9 +78,10 @@ public class BookingResource {
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
     public Map<String, String> selectDoctor(@PathParam("sessionId") String sessionId,
                                             @Valid SelectDoctorRequest request,
-                                            @Context SecurityContext securityContext) {
+                                            @Context SecurityContext securityContext,
+                                            @Context ContainerRequestContext requestContext) {
         BookingSessionBean session = sessionRegistry.getSession(sessionId);
-        assertSessionAccess(session, sessionId, securityContext);
+        assertSessionAccess(session, sessionId, securityContext, requestContext);
         session.selectDoctor(request.doctorId);
         return Map.of("status", "OK");
     }
@@ -81,9 +91,10 @@ public class BookingResource {
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
     public Map<String, String> selectSchedule(@PathParam("sessionId") String sessionId,
                                               @Valid SelectScheduleRequest request,
-                                              @Context SecurityContext securityContext) {
+                                              @Context SecurityContext securityContext,
+                                              @Context ContainerRequestContext requestContext) {
         BookingSessionBean session = sessionRegistry.getSession(sessionId);
-        assertSessionAccess(session, sessionId, securityContext);
+        assertSessionAccess(session, sessionId, securityContext, requestContext);
         session.selectSchedule(request.scheduleId);
         return Map.of("status", "OK");
     }
@@ -93,9 +104,10 @@ public class BookingResource {
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
     public Map<String, String> selectTime(@PathParam("sessionId") String sessionId,
                                           @Valid SelectTimeRequest request,
-                                          @Context SecurityContext securityContext) {
+                                          @Context SecurityContext securityContext,
+                                          @Context ContainerRequestContext requestContext) {
         BookingSessionBean session = sessionRegistry.getSession(sessionId);
-        assertSessionAccess(session, sessionId, securityContext);
+        assertSessionAccess(session, sessionId, securityContext, requestContext);
         session.selectTime(DateTimeParams.parseTime(request.appointmentTime, "appointmentTime"));
         return Map.of("status", "OK");
     }
@@ -105,9 +117,10 @@ public class BookingResource {
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
     public Map<String, String> addNotes(@PathParam("sessionId") String sessionId,
                                         @Valid AddNotesRequest request,
-                                        @Context SecurityContext securityContext) {
+                                        @Context SecurityContext securityContext,
+                                        @Context ContainerRequestContext requestContext) {
         BookingSessionBean session = sessionRegistry.getSession(sessionId);
-        assertSessionAccess(session, sessionId, securityContext);
+        assertSessionAccess(session, sessionId, securityContext, requestContext);
         session.addNotes(request.notes);
         return Map.of("status", "OK");
     }
@@ -116,9 +129,10 @@ public class BookingResource {
     @Path("/{sessionId}/confirm")
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
     public Response confirmBooking(@PathParam("sessionId") String sessionId,
-                                   @Context SecurityContext securityContext) {
+                                   @Context SecurityContext securityContext,
+                                   @Context ContainerRequestContext requestContext) {
         BookingSessionBean session = sessionRegistry.getSession(sessionId);
-        assertSessionAccess(session, sessionId, securityContext);
+        assertSessionAccess(session, sessionId, securityContext, requestContext);
         String actor = securityContext.getUserPrincipal().getName();
         Appointment appointment = session.confirmBooking(actor);
         sessionRegistry.removeSession(sessionId);
@@ -129,9 +143,10 @@ public class BookingResource {
     @Path("/{sessionId}")
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
     public Map<String, String> cancelBooking(@PathParam("sessionId") String sessionId,
-                                             @Context SecurityContext securityContext) {
+                                             @Context SecurityContext securityContext,
+                                             @Context ContainerRequestContext requestContext) {
         BookingSessionBean session = sessionRegistry.getSession(sessionId);
-        assertSessionAccess(session, sessionId, securityContext);
+        assertSessionAccess(session, sessionId, securityContext, requestContext);
         session.cancel();
         sessionRegistry.removeSession(sessionId);
         return Map.of("status", "CANCELLED");
@@ -143,9 +158,10 @@ public class BookingResource {
      * customer) — otherwise anyone holding a foreign sessionId could drive someone else's
      * in-progress booking.
      */
-    private BookingSummary assertSessionAccess(BookingSessionBean session, String sessionId, SecurityContext securityContext) {
+    private BookingSummary assertSessionAccess(BookingSessionBean session, String sessionId,
+                                                SecurityContext securityContext, ContainerRequestContext requestContext) {
         BookingSummary summary = session.getSummary(sessionId);
-        TenantGuard.requireClinic(securityContext, summary.clinicId());
+        TenantGuard.requireClinic(requestContext, summary.clinicId());
         enforceCustomerOwnership(securityContext, summary.clinicId(), summary.customerId());
         return summary;
     }

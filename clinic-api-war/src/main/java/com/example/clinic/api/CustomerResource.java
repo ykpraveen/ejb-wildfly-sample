@@ -18,6 +18,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -42,8 +43,12 @@ public class CustomerResource {
 
     @POST
     @RolesAllowed({"ADMIN", "USER"})
-    public Response createCustomer(@Valid CreateCustomerRequest request, @Context SecurityContext securityContext) {
-        TenantGuard.requireClinic(securityContext, request.clinicId);
+    public Response createCustomer(
+            @Valid CreateCustomerRequest request,
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
+    ) {
+        TenantGuard.requireClinic(requestContext, request.clinicId);
         Customer customer = customerManagementService.createCustomer(
                 request.clinicId,
                 request.fullName,
@@ -62,9 +67,9 @@ public class CustomerResource {
     @RolesAllowed({"ADMIN", "USER"})
     public List<Map<String, Object>> listCustomers(
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         return customerManagementService.listCustomers(clinicId).stream().map(this::toPayload).toList();
     }
 
@@ -74,9 +79,9 @@ public class CustomerResource {
     public Map<String, Object> getCustomer(
             @PathParam("customerId") Long customerId,
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         Customer customer = customerManagementService.findById(clinicId, customerId);
         return toPayload(customer);
     }
@@ -86,9 +91,10 @@ public class CustomerResource {
     @RolesAllowed("CUSTOMER")
     public Map<String, Object> myProfile(
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         Customer customer = customerManagementService.findByUsername(clinicId, securityContext.getUserPrincipal().getName());
         return toPayload(customer);
     }
@@ -100,9 +106,10 @@ public class CustomerResource {
             @PathParam("customerId") Long customerId,
             @Valid UpdateCustomerRequest request,
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         Customer customer = customerManagementService.updateCustomer(
                 clinicId, customerId, request.fullName, request.email, request.phone
         );
@@ -116,9 +123,10 @@ public class CustomerResource {
     public Response deleteCustomer(
             @PathParam("customerId") Long customerId,
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         customerManagementService.softDelete(clinicId, customerId);
         recordAudit(clinicId, securityContext, "CUSTOMER_DELETED", customerId, null);
         return Response.noContent().build();

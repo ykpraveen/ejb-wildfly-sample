@@ -18,6 +18,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -45,9 +46,10 @@ public class ScheduleResource {
     public Response createSchedule(
             @PathParam("doctorId") Long doctorId,
             @Valid CreateScheduleRequest request,
-            @Context SecurityContext securityContext
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, request.clinicId);
+        TenantGuard.requireClinic(requestContext, request.clinicId);
         DoctorSchedule schedule = scheduleManagementService.addSchedule(
                 request.clinicId,
                 doctorId,
@@ -68,9 +70,9 @@ public class ScheduleResource {
     public List<Map<String, Object>> listSchedules(
             @PathParam("doctorId") Long doctorId,
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         return scheduleManagementService.listSchedules(clinicId, doctorId).stream()
                 .map(this::toPayload).toList();
     }
@@ -82,9 +84,9 @@ public class ScheduleResource {
             @PathParam("doctorId") Long doctorId,
             @PathParam("scheduleId") Long scheduleId,
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         DoctorSchedule schedule = scheduleManagementService.findById(clinicId, scheduleId);
         return toPayload(schedule);
     }
@@ -96,9 +98,9 @@ public class ScheduleResource {
             @PathParam("doctorId") Long doctorId,
             @QueryParam("clinicId") Long clinicId,
             @QueryParam("date") String date,
-            @Context SecurityContext securityContext
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         return scheduleManagementService.listSchedulesByDate(clinicId, doctorId, DateTimeParams.parseDate(date, "date")).stream()
                 .map(this::toPayload).toList();
     }
@@ -111,9 +113,10 @@ public class ScheduleResource {
             @PathParam("scheduleId") Long scheduleId,
             @Valid UpdateScheduleRequest request,
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         DoctorSchedule schedule = scheduleManagementService.updateSchedule(
                 clinicId,
                 scheduleId,
@@ -132,9 +135,10 @@ public class ScheduleResource {
             @PathParam("doctorId") Long doctorId,
             @PathParam("scheduleId") Long scheduleId,
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         scheduleManagementService.softDelete(clinicId, scheduleId);
         recordAudit(clinicId, securityContext, "SCHEDULE_DELETED", scheduleId, null);
         return Response.noContent().build();

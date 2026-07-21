@@ -18,6 +18,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -42,8 +43,12 @@ public class DoctorResource {
 
     @POST
     @RolesAllowed({"ADMIN", "USER"})
-    public Response createDoctor(@Valid CreateDoctorRequest request, @Context SecurityContext securityContext) {
-        TenantGuard.requireClinic(securityContext, request.clinicId);
+    public Response createDoctor(
+            @Valid CreateDoctorRequest request,
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
+    ) {
+        TenantGuard.requireClinic(requestContext, request.clinicId);
         Doctor doctor = doctorManagementService.createDoctor(
                 request.clinicId,
                 request.fullName,
@@ -63,9 +68,9 @@ public class DoctorResource {
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
     public List<Map<String, Object>> listDoctors(
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         return doctorManagementService.listDoctors(clinicId).stream().map(this::toPayload).toList();
     }
 
@@ -74,9 +79,10 @@ public class DoctorResource {
     @RolesAllowed("DOCTOR")
     public Map<String, Object> myProfile(
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         Doctor doctor = doctorManagementService.findByUsername(clinicId, securityContext.getUserPrincipal().getName());
         return toPayload(doctor);
     }
@@ -87,9 +93,9 @@ public class DoctorResource {
     public Map<String, Object> getDoctor(
             @PathParam("doctorId") Long doctorId,
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         Doctor doctor = doctorManagementService.findById(clinicId, doctorId);
         return toPayload(doctor);
     }
@@ -101,9 +107,10 @@ public class DoctorResource {
             @PathParam("doctorId") Long doctorId,
             @Valid UpdateDoctorRequest request,
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         Doctor doctor = doctorManagementService.updateDoctor(
                 clinicId, doctorId, request.fullName, request.specialty, request.active, request.slotMinutes
         );
@@ -117,9 +124,10 @@ public class DoctorResource {
     public Response deleteDoctor(
             @PathParam("doctorId") Long doctorId,
             @QueryParam("clinicId") Long clinicId,
-            @Context SecurityContext securityContext
+            @Context SecurityContext securityContext,
+            @Context ContainerRequestContext requestContext
     ) {
-        TenantGuard.requireClinic(securityContext, clinicId);
+        TenantGuard.requireClinic(requestContext, clinicId);
         doctorManagementService.softDelete(clinicId, doctorId);
         recordAudit(clinicId, securityContext, "DOCTOR_DELETED", doctorId, null);
         return Response.noContent().build();
