@@ -19,7 +19,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "users", schema = "user_mgmt", uniqueConstraints = {
+@Table(name = "users", uniqueConstraints = {
         @UniqueConstraint(name = "uk_users_clinic_username", columnNames = {"clinic_id", "username"})
 })
 public class UserAccount {
@@ -43,7 +43,7 @@ public class UserAccount {
     private boolean deleted;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_roles", schema = "user_mgmt", joinColumns = @JoinColumn(name = "user_id"))
+    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "role_name", nullable = false, length = 30)
     @Enumerated(EnumType.STRING)
     private Set<RoleName> roles = new HashSet<>();
