@@ -1,4 +1,4 @@
-# Clinic Appointment Backend (WildFly + EJB3)
+# Clinic Appointment Backend (WildFly + EJB 4.0)
 
 Modular REST backend built with Jakarta EE on WildFly, deployed as an EAR (WAR + EJB modules) with MySQL persistence.
 
@@ -17,7 +17,7 @@ Modular REST backend built with Jakarta EE on WildFly, deployed as an EAR (WAR +
 |---|---|
 | Runtime | WildFly 35.0.1 (Jakarta EE 10) |
 | Language | Java 21 (`maven.compiler.release=21`) |
-| Business | EJB3 `@Stateless` beans with `@Transactional` |
+| Business | EJB 4.0 `@Stateless` beans with `@Transactional` |
 | REST | JAX-RS (RESTEasy) via `@Path` resources |
 | Persistence | JPA/Hibernate 6.2 with Flyway schema migrations |
 | Auth | JWT tokens (custom `JwtService` + `JwtAuthenticationFilter`) |
@@ -29,7 +29,7 @@ Modular REST backend built with Jakarta EE on WildFly, deployed as an EAR (WAR +
 
 ```
 ejb-wildfly-sample/
-├── pom.xml                          # Parent POM (multi-module, EJB 3.2)
+├── pom.xml                          # Parent POM (multi-module, EJB 4.0)
 ├── docker-compose.yml               # MySQL + WildFly + Adminer
 ├── cli/
 │   ├── configure-datasource.cli     # WildFly CLI script for datasource setup

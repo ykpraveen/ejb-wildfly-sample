@@ -140,7 +140,7 @@
                 <artifactId>maven-ejb-plugin</artifactId>
                 <version>${maven.ejb.plugin.version}</version>
                 <configuration>
-                    <ejbVersion>3.2</ejbVersion>
+                    <ejbVersion>4.0</ejbVersion>
                 </configuration>
             </plugin>
         </plugins>
