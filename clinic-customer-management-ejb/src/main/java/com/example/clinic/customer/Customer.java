@@ -11,7 +11,7 @@ import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 
 @Entity
-@Table(name = "customers", uniqueConstraints = {
+@Table(name = "customers", schema = "customer_mgmt", uniqueConstraints = {
         @UniqueConstraint(name = "uk_customers_clinic_username", columnNames = {"clinic_id", "username"}),
         @UniqueConstraint(name = "uk_customers_clinic_email", columnNames = {"clinic_id", "email"})
 })

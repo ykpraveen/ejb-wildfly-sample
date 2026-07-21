@@ -1,4 +1,4 @@
-CREATE TABLE doctor_schedules (
+CREATE TABLE schedule_mgmt.doctor_schedules (
     id BIGINT NOT NULL AUTO_INCREMENT,
     clinic_id BIGINT NOT NULL,
     doctor_id BIGINT NOT NULL,

@@ -1,4 +1,4 @@
-CREATE TABLE audit_log (
+CREATE TABLE audit_mgmt.audit_log (
     id BIGINT NOT NULL AUTO_INCREMENT,
     clinic_id BIGINT NOT NULL,
     actor VARCHAR(80) NOT NULL,
@@ -11,5 +11,5 @@ CREATE TABLE audit_log (
     PRIMARY KEY (id)
 );
 
-CREATE INDEX idx_audit_log_entity ON audit_log (clinic_id, entity_type, entity_id);
-CREATE INDEX idx_audit_log_created ON audit_log (clinic_id, created_at);
+CREATE INDEX idx_audit_log_entity ON audit_mgmt.audit_log (clinic_id, entity_type, entity_id);
+CREATE INDEX idx_audit_log_created ON audit_mgmt.audit_log (clinic_id, created_at);

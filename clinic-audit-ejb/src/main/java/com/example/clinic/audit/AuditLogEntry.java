@@ -10,7 +10,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "audit_log")
+@Table(name = "audit_log", schema = "audit_mgmt")
 public class AuditLogEntry {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

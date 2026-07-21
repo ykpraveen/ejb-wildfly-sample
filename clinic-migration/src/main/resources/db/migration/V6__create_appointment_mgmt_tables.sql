@@ -1,4 +1,4 @@
-CREATE TABLE appointments (
+CREATE TABLE appointment_mgmt.appointments (
     id BIGINT NOT NULL AUTO_INCREMENT,
     clinic_id BIGINT NOT NULL,
     customer_id BIGINT NOT NULL,

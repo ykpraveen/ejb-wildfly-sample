@@ -11,7 +11,7 @@ import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 
 @Entity
-@Table(name = "doctors", uniqueConstraints = {
+@Table(name = "doctors", schema = "doctor_mgmt", uniqueConstraints = {
         @UniqueConstraint(name = "uk_doctors_clinic_username", columnNames = {"clinic_id", "username"})
 })
 public class Doctor {

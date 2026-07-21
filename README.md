@@ -71,7 +71,7 @@ Each EJB module defines its own `persistence.xml` with a dedicated persistence u
 | clinic-appointment-management-ejb | `appointmentMgmtPU` | `appointment_mgmt` |
 | clinic-audit-ejb | `auditMgmtPU` | `audit_mgmt` |
 
-All persistence units share the same `ClinicDS` JNDI datasource in the `clinicdb` database. Schema is managed by Flyway migrations (`clinic-migration` module).
+All persistence units share the same `ClinicDS` JNDI datasource (MySQL user has cross-schema privileges), but each entity is mapped to its own real MySQL schema via `@Table(schema = ...)` — the six schemas above are created by `V1__create_schemas.sql`, and every other migration creates its tables directly inside the schema it owns. The `clinicdb` database named in the JDBC URL holds only Flyway's own `flyway_schema_history` bookkeeping table, not any domain data.
 
 ## Seed data
 
@@ -250,10 +250,13 @@ docker exec -i clinic-wildfly /opt/jboss/wildfly/bin/jboss-cli.sh --connect \
   --command="/subsystem=datasources/data-source=ClinicDS:test-connection-in-pool"
 
 # Connect to MySQL
-docker exec -it clinic-mysql mysql -uroot -proot123 clinicdb
+docker exec -it clinic-mysql mysql -uroot -proot123
 
-# Query tables
-docker exec clinic-mysql mysql -uroot -proot123 clinicdb -e "SHOW TABLES;"
+# Query tables in a given module's schema
+docker exec clinic-mysql mysql -uroot -proot123 -e "SHOW TABLES FROM appointment_mgmt;"
+
+# List all clinic schemas
+docker exec clinic-mysql mysql -uroot -proot123 -e "SHOW SCHEMAS;"
 
 # Open Adminer (DB admin UI)
 # Available at http://localhost:8081 when started with --profile tools
