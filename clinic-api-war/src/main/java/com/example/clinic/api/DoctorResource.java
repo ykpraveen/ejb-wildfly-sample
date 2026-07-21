@@ -70,6 +70,18 @@ public class DoctorResource {
     }
 
     @GET
+    @Path("/me")
+    @RolesAllowed("DOCTOR")
+    public Map<String, Object> myProfile(
+            @QueryParam("clinicId") Long clinicId,
+            @Context SecurityContext securityContext
+    ) {
+        TenantGuard.requireClinic(securityContext, clinicId);
+        Doctor doctor = doctorManagementService.findByUsername(clinicId, securityContext.getUserPrincipal().getName());
+        return toPayload(doctor);
+    }
+
+    @GET
     @Path("/{doctorId}")
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
     public Map<String, Object> getDoctor(

@@ -17,6 +17,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
+// Each of doctorService/scheduleService/appointmentService lives on its own non-XA datasource.
+// Every method here must call at most ONE of them — WildFly/Narayana can't enlist two non-XA
+// resources in a single JTA transaction, so touching two in one method would fail at runtime.
 @Stateful
 @ConcurrencyManagement(ConcurrencyManagementType.CONTAINER)
 public class BookingSessionBean {

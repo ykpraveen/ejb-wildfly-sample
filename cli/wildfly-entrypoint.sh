@@ -57,8 +57,20 @@ if [ ! -f "$CONFIG_BAK" ]; then
 fi
 
 # ── Step 4: Configure datasource using embed-server ──────────────────────────
+# Check every datasource the CLI script creates, not just the first — a partial failure
+# part-way through configure-datasource-full.cli would otherwise leave later datasources
+# permanently missing, since the first one alone would keep satisfying this check forever.
 
-if grep -q "UserMgmtDS" "$CONFIG_XML" 2>/dev/null; then
+REQUIRED_DATASOURCES=(UserMgmtDS CustomerMgmtDS DoctorMgmtDS ScheduleMgmtDS AppointmentMgmtDS AuditMgmtDS)
+
+datasources_configured() {
+    for ds in "${REQUIRED_DATASOURCES[@]}"; do
+        grep -q "$ds" "$CONFIG_XML" 2>/dev/null || return 1
+    done
+    return 0
+}
+
+if datasources_configured; then
     echo "[entrypoint] Datasources already configured."
 else
     echo "[entrypoint] Restoring clean standalone-full.xml before configuring..."

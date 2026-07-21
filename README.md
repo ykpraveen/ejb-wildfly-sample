@@ -57,20 +57,22 @@ ejb-wildfly-sample/
 
 Cross-module JPA `@ManyToOne` / `@OneToMany` relationships are intentionally avoided. Each module owns its own tables and entities.
 
+**Invariant: never call directly from one module's `@Transactional` EJB method into another module's service.** Each module has its own plain (non-XA) datasource, and WildFly/Narayana cannot enlist two non-XA resources in one JTA transaction — doing so would fail at runtime with a "more than one local transaction" error. This currently holds only because every cross-module call originates from a non-transactional caller (a JAX-RS resource in `clinic-api-war`, or a `BookingSessionBean` method that touches at most one other module's service per invocation) — each such call is its own independent top-level transaction. `AuditService.record` is deliberately `@TransactionAttribute(REQUIRES_NEW)` for the same reason: it always runs in its own transaction regardless of caller.
+
 ### JPA persistence units
 
 Each EJB module defines its own `persistence.xml` with a dedicated persistence unit:
 
-| Module | Persistence Unit | Schema |
-|---|---|---|
-| clinic-user-management-ejb | `userMgmtPU` | `user_mgmt` |
-| clinic-customer-management-ejb | `customerMgmtPU` | `customer_mgmt` |
-| clinic-doctor-management-ejb | `doctorMgmtPU` | `doctor_mgmt` |
-| clinic-schedule-management-ejb | `scheduleMgmtPU` | `schedule_mgmt` |
-| clinic-appointment-management-ejb | `appointmentMgmtPU` | `appointment_mgmt` |
-| clinic-audit-ejb | `auditMgmtPU` | `audit_mgmt` |
+| Module | Persistence Unit | JNDI Datasource | Schema |
+|---|---|---|---|
+| clinic-user-management-ejb | `userMgmtPU` | `UserMgmtDS` | `user_mgmt` |
+| clinic-customer-management-ejb | `customerMgmtPU` | `CustomerMgmtDS` | `customer_mgmt` |
+| clinic-doctor-management-ejb | `doctorMgmtPU` | `DoctorMgmtDS` | `doctor_mgmt` |
+| clinic-schedule-management-ejb | `scheduleMgmtPU` | `ScheduleMgmtDS` | `schedule_mgmt` |
+| clinic-appointment-management-ejb | `appointmentMgmtPU` | `AppointmentMgmtDS` | `appointment_mgmt` |
+| clinic-audit-ejb | `auditMgmtPU` | `AuditMgmtDS` | `audit_mgmt` |
 
-All persistence units share the same `ClinicDS` JNDI datasource (MySQL user has cross-schema privileges), but each entity is mapped to its own real MySQL schema via `@Table(schema = ...)` — the six schemas above are created by `V1__create_schemas.sql`, and every other migration creates its tables directly inside the schema it owns. The `clinicdb` database named in the JDBC URL holds only Flyway's own `flyway_schema_history` bookkeeping table, not any domain data.
+Each persistence unit has its own dedicated JNDI datasource, and each datasource's JDBC URL connects directly to that module's own MySQL database (e.g. `jdbc:mysql://mysql:3306/user_mgmt`) — so entities don't need a `@Table(schema = ...)` qualifier; the connection's own default database resolves unqualified table names correctly. All six datasources authenticate as the same MySQL `root` user (isolation between modules is organizational — separate connections/JNDI names — not access-controlled at the DB level). The six schemas are created by `V1__create_schemas.sql`, and every other migration creates its tables directly inside the schema it owns. The `clinicdb` database named in the Flyway/MySQL container's JDBC URL holds only Flyway's own `flyway_schema_history` bookkeeping table, not any domain data.
 
 ## Seed data
 
@@ -205,16 +207,16 @@ This starts MySQL → Flyway → WildFly in sequence:
 
 1. Downloads the MySQL JDBC driver from Maven Central (if not cached)
 2. Installs it as a WildFly module (`com.mysql.mysql-connector-j`) with a `module.xml` descriptor
-3. Registers the `ClinicDS` datasource via an embed-server CLI script
+3. Registers the six per-module datasources (`UserMgmtDS`, `CustomerMgmtDS`, `DoctorMgmtDS`, `ScheduleMgmtDS`, `AppointmentMgmtDS`, `AuditMgmtDS`) via an embed-server CLI script
 4. Cleans stale deployment markers
 5. Starts WildFly in the foreground with `standalone-full.xml` (required for JMS/MDB support)
 
-No manual CLI steps needed. On subsequent restarts, the script detects the existing driver and datasource and skips reconfiguration.
+No manual CLI steps needed. On subsequent restarts, the script checks that all six datasources are present and skips reconfiguration if so.
 
 If you need to reconfigure manually:
 
 ```bash
-docker exec -i clinic-wildfly /opt/jboss/wildfly/bin/jboss-cli.sh --connect --command="/subsystem=datasources/data-source=ClinicDS:test-connection-in-pool"
+docker exec -i clinic-wildfly /opt/jboss/wildfly/bin/jboss-cli.sh --connect --command="/subsystem=datasources/data-source=AppointmentMgmtDS:test-connection-in-pool"
 ```
 
 ### Build and deploy
@@ -244,9 +246,9 @@ docker exec clinic-wildfly ls /opt/jboss/wildfly/standalone/deployments/
 # WildFly logs
 docker logs -f clinic-wildfly
 
-# Reconfigure datasource (if needed)
+# Reconfigure datasource (if needed) — repeat per datasource name, or list them all:
 docker exec -i clinic-wildfly /opt/jboss/wildfly/bin/jboss-cli.sh --connect \
-  --command="/subsystem=datasources/data-source=ClinicDS:test-connection-in-pool"
+  --command="/subsystem=datasources:read-children-names(child-type=data-source)"
 
 # Connect to MySQL
 docker exec -it clinic-mysql mysql -uroot -proot123

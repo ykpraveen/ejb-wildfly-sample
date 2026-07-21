@@ -8,6 +8,9 @@ export const doctorsApi = {
   get(doctorId: number, clinicId: number) {
     return client.get<Doctor>(`/doctors/${doctorId}`, { params: { clinicId } })
   },
+  me(clinicId: number) {
+    return client.get<Doctor>('/doctors/me', { params: { clinicId } })
+  },
   create(data: CreateDoctorRequest) {
     return client.post<Doctor>('/doctors', data)
   },
