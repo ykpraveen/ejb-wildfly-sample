@@ -121,13 +121,8 @@ export const useBookingStore = defineStore('booking', () => {
     }
   }
 
-  async function updateNotes(notesText: string): Promise<void> {
+  function updateNotes(notesText: string): void {
     notes.value = notesText
-    if (sessionId.value) {
-      try {
-        await bookingsApi.addNotes(sessionId.value, notesText)
-      } catch { /* silent */ }
-    }
   }
 
   async function confirmBooking(): Promise<boolean> {

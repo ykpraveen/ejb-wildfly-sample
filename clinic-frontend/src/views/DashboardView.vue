@@ -42,10 +42,13 @@
           <v-card-title>Quick Actions</v-card-title>
           <v-card-text>
             <v-list density="compact">
-              <v-list-item prepend-icon="mdi-plus-circle" title="Book Appointment" to="/bookings" />
-              <v-list-item prepend-icon="mdi-account-group" title="Manage Customers" to="/customers" />
-              <v-list-item prepend-icon="mdi-doctor" title="Manage Doctors" to="/doctors" />
-              <v-list-item prepend-icon="mdi-calendar-clock" title="Manage Schedules" to="/schedules" />
+              <v-list-item
+                v-for="action in quickActions"
+                :key="action.to"
+                :prepend-icon="action.icon"
+                :title="action.title"
+                :to="action.to"
+              />
             </v-list>
           </v-card-text>
         </v-card>
@@ -63,6 +66,17 @@ import type { Appointment } from '@/api/types'
 const authStore = useAuthStore()
 const appointments = ref<Appointment[]>([])
 const loadingAppointments = ref(false)
+
+const QUICK_ACTIONS = [
+  { title: 'Book Appointment', icon: 'mdi-plus-circle', to: '/bookings', roles: ['ADMIN', 'USER', 'CUSTOMER'] },
+  { title: 'Manage Customers', icon: 'mdi-account-group', to: '/customers', roles: ['ADMIN', 'USER'] },
+  { title: 'Manage Doctors', icon: 'mdi-doctor', to: '/doctors', roles: ['ADMIN', 'USER'] },
+  { title: 'Manage Schedules', icon: 'mdi-calendar-clock', to: '/schedules', roles: ['ADMIN', 'USER', 'DOCTOR'] },
+]
+
+const quickActions = computed(() =>
+  QUICK_ACTIONS.filter((action) => action.roles.some((role) => authStore.hasRole(role))),
+)
 
 const statCards = computed(() => [
   { title: 'Appointments', value: appointments.value.length, icon: 'mdi-calendar-check', color: 'primary' },
@@ -86,6 +100,7 @@ function statusColor(status: string) {
 
 onMounted(async () => {
   if (!authStore.clinicId) return
+  if (!authStore.hasRole('ADMIN') && !authStore.hasRole('USER')) return
   loadingAppointments.value = true
   try {
     const { data } = await appointmentsApi.list(authStore.clinicId)
