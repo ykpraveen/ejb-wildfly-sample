@@ -1,23 +1,76 @@
 # WildFly MySQL Datasource Configuration for standalone-full.xml
-# Uses embed-server to modify the XML directly before WildFly starts.
-# The MySQL JDBC driver module must already exist in the filesystem before this runs.
+# Creates one datasource per schema for proper multi-schema MySQL support.
+# The MySQL JDBC driver module must already exist before this runs.
 
 embed-server --std-out=echo --server-config=standalone-full.xml
 
 # Register JDBC driver
 /subsystem=datasources/jdbc-driver=mysql:add(driver-name=mysql,driver-module-name=com.mysql.mysql-connector-j,driver-class-name=com.mysql.cj.jdbc.Driver)
 
-# Add ClinicDS datasource
-/subsystem=datasources/data-source=ClinicDS:add( \
-    jndi-name="java:jboss/datasources/ClinicDS", \
-    connection-url="jdbc:mysql://mysql:3306/clinicdb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC", \
+# User Management datasource
+/subsystem=datasources/data-source=UserMgmtDS:add( \
+    jndi-name="java:jboss/datasources/UserMgmtDS", \
+    connection-url="jdbc:mysql://mysql:3306/user_mgmt?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC", \
     driver-name=mysql, \
     user-name="root", \
-    password="${env.MYSQL_ROOT_PASSWORD}", \
+    password="root123", \
     enabled=true, \
     statistics-enabled=false, \
     background-validation=false)
 
-/subsystem=datasources/data-source=ClinicDS/connection-statistics="java:jboss/datasources/ClinicDS":write-attribute(name=statistics-enabled,value=true)
+# Customer Management datasource
+/subsystem=datasources/data-source=CustomerMgmtDS:add( \
+    jndi-name="java:jboss/datasources/CustomerMgmtDS", \
+    connection-url="jdbc:mysql://mysql:3306/customer_mgmt?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC", \
+    driver-name=mysql, \
+    user-name="root", \
+    password="root123", \
+    enabled=true, \
+    statistics-enabled=false, \
+    background-validation=false)
+
+# Doctor Management datasource
+/subsystem=datasources/data-source=DoctorMgmtDS:add( \
+    jndi-name="java:jboss/datasources/DoctorMgmtDS", \
+    connection-url="jdbc:mysql://mysql:3306/doctor_mgmt?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC", \
+    driver-name=mysql, \
+    user-name="root", \
+    password="root123", \
+    enabled=true, \
+    statistics-enabled=false, \
+    background-validation=false)
+
+# Schedule Management datasource
+/subsystem=datasources/data-source=ScheduleMgmtDS:add( \
+    jndi-name="java:jboss/datasources/ScheduleMgmtDS", \
+    connection-url="jdbc:mysql://mysql:3306/schedule_mgmt?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC", \
+    driver-name=mysql, \
+    user-name="root", \
+    password="root123", \
+    enabled=true, \
+    statistics-enabled=false, \
+    background-validation=false)
+
+# Appointment Management datasource
+/subsystem=datasources/data-source=AppointmentMgmtDS:add( \
+    jndi-name="java:jboss/datasources/AppointmentMgmtDS", \
+    connection-url="jdbc:mysql://mysql:3306/appointment_mgmt?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC", \
+    driver-name=mysql, \
+    user-name="root", \
+    password="root123", \
+    enabled=true, \
+    statistics-enabled=false, \
+    background-validation=false)
+
+# Audit Management datasource
+/subsystem=datasources/data-source=AuditMgmtDS:add( \
+    jndi-name="java:jboss/datasources/AuditMgmtDS", \
+    connection-url="jdbc:mysql://mysql:3306/audit_mgmt?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC", \
+    driver-name=mysql, \
+    user-name="root", \
+    password="root123", \
+    enabled=true, \
+    statistics-enabled=false, \
+    background-validation=false)
 
 exit
