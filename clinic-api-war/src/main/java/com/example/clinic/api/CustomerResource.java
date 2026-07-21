@@ -18,7 +18,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
-import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -46,9 +46,9 @@ public class CustomerResource {
     public Response createCustomer(
             @Valid CreateCustomerRequest request,
             @Context SecurityContext securityContext,
-            @Context ContainerRequestContext requestContext
+            @Context HttpServletRequest httpRequest
     ) {
-        TenantGuard.requireClinic(requestContext, request.clinicId);
+        TenantGuard.requireClinic(httpRequest, request.clinicId);
         Customer customer = customerManagementService.createCustomer(
                 request.clinicId,
                 request.fullName,
@@ -67,9 +67,9 @@ public class CustomerResource {
     @RolesAllowed({"ADMIN", "USER"})
     public List<Map<String, Object>> listCustomers(
             @QueryParam("clinicId") Long clinicId,
-            @Context ContainerRequestContext requestContext
+            @Context HttpServletRequest httpRequest
     ) {
-        TenantGuard.requireClinic(requestContext, clinicId);
+        TenantGuard.requireClinic(httpRequest, clinicId);
         return customerManagementService.listCustomers(clinicId).stream().map(this::toPayload).toList();
     }
 
@@ -79,9 +79,9 @@ public class CustomerResource {
     public Map<String, Object> getCustomer(
             @PathParam("customerId") Long customerId,
             @QueryParam("clinicId") Long clinicId,
-            @Context ContainerRequestContext requestContext
+            @Context HttpServletRequest httpRequest
     ) {
-        TenantGuard.requireClinic(requestContext, clinicId);
+        TenantGuard.requireClinic(httpRequest, clinicId);
         Customer customer = customerManagementService.findById(clinicId, customerId);
         return toPayload(customer);
     }
@@ -92,9 +92,9 @@ public class CustomerResource {
     public Map<String, Object> myProfile(
             @QueryParam("clinicId") Long clinicId,
             @Context SecurityContext securityContext,
-            @Context ContainerRequestContext requestContext
+            @Context HttpServletRequest httpRequest
     ) {
-        TenantGuard.requireClinic(requestContext, clinicId);
+        TenantGuard.requireClinic(httpRequest, clinicId);
         Customer customer = customerManagementService.findByUsername(clinicId, securityContext.getUserPrincipal().getName());
         return toPayload(customer);
     }
@@ -107,9 +107,9 @@ public class CustomerResource {
             @Valid UpdateCustomerRequest request,
             @QueryParam("clinicId") Long clinicId,
             @Context SecurityContext securityContext,
-            @Context ContainerRequestContext requestContext
+            @Context HttpServletRequest httpRequest
     ) {
-        TenantGuard.requireClinic(requestContext, clinicId);
+        TenantGuard.requireClinic(httpRequest, clinicId);
         Customer customer = customerManagementService.updateCustomer(
                 clinicId, customerId, request.fullName, request.email, request.phone
         );
@@ -124,9 +124,9 @@ public class CustomerResource {
             @PathParam("customerId") Long customerId,
             @QueryParam("clinicId") Long clinicId,
             @Context SecurityContext securityContext,
-            @Context ContainerRequestContext requestContext
+            @Context HttpServletRequest httpRequest
     ) {
-        TenantGuard.requireClinic(requestContext, clinicId);
+        TenantGuard.requireClinic(httpRequest, clinicId);
         customerManagementService.softDelete(clinicId, customerId);
         recordAudit(clinicId, securityContext, "CUSTOMER_DELETED", customerId, null);
         return Response.noContent().build();

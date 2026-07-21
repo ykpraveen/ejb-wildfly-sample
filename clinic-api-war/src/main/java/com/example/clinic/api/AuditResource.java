@@ -8,7 +8,7 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.QueryParam;
-import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 
@@ -30,9 +30,9 @@ public class AuditResource {
             @QueryParam("entityId") Long entityId,
             @QueryParam("actor") String actor,
             @QueryParam("limit") Integer limit,
-            @Context ContainerRequestContext requestContext
+            @Context HttpServletRequest httpRequest
     ) {
-        TenantGuard.requireClinic(requestContext, clinicId);
+        TenantGuard.requireClinic(httpRequest, clinicId);
         return auditService.list(clinicId, entityType, entityId, actor, limit).stream()
                 .map(this::toPayload).toList();
     }

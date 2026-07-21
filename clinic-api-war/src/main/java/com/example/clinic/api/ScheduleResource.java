@@ -18,7 +18,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
-import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -47,9 +47,9 @@ public class ScheduleResource {
             @PathParam("doctorId") Long doctorId,
             @Valid CreateScheduleRequest request,
             @Context SecurityContext securityContext,
-            @Context ContainerRequestContext requestContext
+            @Context HttpServletRequest httpRequest
     ) {
-        TenantGuard.requireClinic(requestContext, request.clinicId);
+        TenantGuard.requireClinic(httpRequest, request.clinicId);
         DoctorSchedule schedule = scheduleManagementService.addSchedule(
                 request.clinicId,
                 doctorId,
@@ -70,9 +70,9 @@ public class ScheduleResource {
     public List<Map<String, Object>> listSchedules(
             @PathParam("doctorId") Long doctorId,
             @QueryParam("clinicId") Long clinicId,
-            @Context ContainerRequestContext requestContext
+            @Context HttpServletRequest httpRequest
     ) {
-        TenantGuard.requireClinic(requestContext, clinicId);
+        TenantGuard.requireClinic(httpRequest, clinicId);
         return scheduleManagementService.listSchedules(clinicId, doctorId).stream()
                 .map(this::toPayload).toList();
     }
@@ -84,9 +84,9 @@ public class ScheduleResource {
             @PathParam("doctorId") Long doctorId,
             @PathParam("scheduleId") Long scheduleId,
             @QueryParam("clinicId") Long clinicId,
-            @Context ContainerRequestContext requestContext
+            @Context HttpServletRequest httpRequest
     ) {
-        TenantGuard.requireClinic(requestContext, clinicId);
+        TenantGuard.requireClinic(httpRequest, clinicId);
         DoctorSchedule schedule = scheduleManagementService.findById(clinicId, scheduleId);
         return toPayload(schedule);
     }
@@ -98,9 +98,9 @@ public class ScheduleResource {
             @PathParam("doctorId") Long doctorId,
             @QueryParam("clinicId") Long clinicId,
             @QueryParam("date") String date,
-            @Context ContainerRequestContext requestContext
+            @Context HttpServletRequest httpRequest
     ) {
-        TenantGuard.requireClinic(requestContext, clinicId);
+        TenantGuard.requireClinic(httpRequest, clinicId);
         return scheduleManagementService.listSchedulesByDate(clinicId, doctorId, DateTimeParams.parseDate(date, "date")).stream()
                 .map(this::toPayload).toList();
     }
@@ -114,9 +114,9 @@ public class ScheduleResource {
             @Valid UpdateScheduleRequest request,
             @QueryParam("clinicId") Long clinicId,
             @Context SecurityContext securityContext,
-            @Context ContainerRequestContext requestContext
+            @Context HttpServletRequest httpRequest
     ) {
-        TenantGuard.requireClinic(requestContext, clinicId);
+        TenantGuard.requireClinic(httpRequest, clinicId);
         DoctorSchedule schedule = scheduleManagementService.updateSchedule(
                 clinicId,
                 scheduleId,
@@ -136,9 +136,9 @@ public class ScheduleResource {
             @PathParam("scheduleId") Long scheduleId,
             @QueryParam("clinicId") Long clinicId,
             @Context SecurityContext securityContext,
-            @Context ContainerRequestContext requestContext
+            @Context HttpServletRequest httpRequest
     ) {
-        TenantGuard.requireClinic(requestContext, clinicId);
+        TenantGuard.requireClinic(httpRequest, clinicId);
         scheduleManagementService.softDelete(clinicId, scheduleId);
         recordAudit(clinicId, securityContext, "SCHEDULE_DELETED", scheduleId, null);
         return Response.noContent().build();

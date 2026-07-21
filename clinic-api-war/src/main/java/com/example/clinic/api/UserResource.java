@@ -17,7 +17,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
-import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.SecurityContext;
@@ -43,10 +43,10 @@ public class UserResource {
     public Map<String, Object> createUser(
             @Valid CreateUserRequest request,
             @Context SecurityContext securityContext,
-            @Context ContainerRequestContext requestContext
+            @Context HttpServletRequest httpRequest
     ) {
         assertAdmin(securityContext);
-        TenantGuard.requireClinic(requestContext, request.clinicId);
+        TenantGuard.requireClinic(httpRequest, request.clinicId);
 
         UserAccount user = userManagementService.createUser(
                 request.clinicId,
@@ -64,10 +64,10 @@ public class UserResource {
             @PathParam("userId") Long userId,
             @Valid ActivateUserRequest request,
             @Context SecurityContext securityContext,
-            @Context ContainerRequestContext requestContext
+            @Context HttpServletRequest httpRequest
     ) {
         assertAdmin(securityContext);
-        TenantGuard.requireClinic(requestContext, request == null ? null : request.clinicId);
+        TenantGuard.requireClinic(httpRequest, request == null ? null : request.clinicId);
 
         UserAccount user = userManagementService.activateUser(request.clinicId, userId);
         recordAudit(request.clinicId, securityContext, "USER_ACTIVATED", userId, null);
@@ -80,10 +80,10 @@ public class UserResource {
             @PathParam("userId") Long userId,
             @Valid ActivateUserRequest request,
             @Context SecurityContext securityContext,
-            @Context ContainerRequestContext requestContext
+            @Context HttpServletRequest httpRequest
     ) {
         assertAdmin(securityContext);
-        TenantGuard.requireClinic(requestContext, request == null ? null : request.clinicId);
+        TenantGuard.requireClinic(httpRequest, request == null ? null : request.clinicId);
 
         UserAccount user = userManagementService.deactivateUser(request.clinicId, userId);
         recordAudit(request.clinicId, securityContext, "USER_DEACTIVATED", userId, null);
@@ -94,10 +94,10 @@ public class UserResource {
     public List<Map<String, Object>> listUsers(
             @QueryParam("clinicId") Long clinicId,
             @Context SecurityContext securityContext,
-            @Context ContainerRequestContext requestContext
+            @Context HttpServletRequest httpRequest
     ) {
         assertAdmin(securityContext);
-        TenantGuard.requireClinic(requestContext, clinicId);
+        TenantGuard.requireClinic(httpRequest, clinicId);
         return userManagementService.listUsers(clinicId).stream().map(this::toPayload).toList();
     }
 
