@@ -27,6 +27,7 @@
         <module>clinic-migration</module>
         <module>clinic-common</module>
         <module>clinic-security</module>
+        <module>clinic-audit-ejb</module>
         <module>clinic-user-management-ejb</module>
         <module>clinic-customer-management-ejb</module>
         <module>clinic-doctor-management-ejb</module>
@@ -53,6 +54,11 @@
             <dependency>
                 <groupId>com.example.clinic</groupId>
                 <artifactId>clinic-security</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.example.clinic</groupId>
+                <artifactId>clinic-audit-ejb</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -134,7 +140,7 @@
                 <artifactId>maven-ejb-plugin</artifactId>
                 <version>${maven.ejb.plugin.version}</version>
                 <configuration>
-                    <ejbVersion>3.2</ejbVersion>
+                    <ejbVersion>4.0</ejbVersion>
                 </configuration>
             </plugin>
         </plugins>

@@ -100,11 +100,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useForm, Field } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notification'
+import { useAsyncLoad } from '@/composables/useAsyncLoad'
 import { customersApi } from '@/api/customers'
 import type { Customer } from '@/api/types'
 import { createCustomerSchema, updateCustomerSchema } from '@/validation'
@@ -114,7 +115,6 @@ const authStore = useAuthStore()
 const notify = useNotificationStore()
 
 const customers = ref<Customer[]>([])
-const loading = ref(false)
 const submitting = ref(false)
 const search = ref('')
 
@@ -153,18 +153,11 @@ const filteredCustomers = computed(() => {
   )
 })
 
-async function loadCustomers() {
+const { loading, run: loadCustomers } = useAsyncLoad(async () => {
   if (!authStore.clinicId) return
-  loading.value = true
-  try {
-    const { data } = await customersApi.list(authStore.clinicId)
-    customers.value = data
-  } catch {
-    notify.error('Failed to load customers.')
-  } finally {
-    loading.value = false
-  }
-}
+  const { data } = await customersApi.list(authStore.clinicId)
+  customers.value = data
+}, 'Failed to load customers.')
 
 function openCreate() {
   createForm.resetForm()
@@ -238,5 +231,4 @@ async function handleDelete() {
   }
 }
 
-onMounted(loadCustomers)
 </script>

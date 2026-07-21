@@ -37,5 +37,9 @@ export interface SelectTimeRequest { appointmentTime: string }
 export interface AddNotesRequest { notes: string }
 export interface BookingSummary { sessionId: string; clinicId: number; customerId: number; doctorId: number; doctorName: string; scheduleId: number; scheduleDate: string; scheduleStartTime: string; scheduleEndTime: string; selectedTime: string; notes: string; status: string }
 
+// Audit
+export interface AuditLogEntry { id: number; clinicId: number; actor: string; action: string; entityType: string; entityId: number; details: string; correlationId: string; createdAt: string }
+export interface AuditFilters { entityType?: string; entityId?: number; actor?: string; limit?: number }
+
 // Error
 export interface ApiError { code: string; message: string; correlationId: string }

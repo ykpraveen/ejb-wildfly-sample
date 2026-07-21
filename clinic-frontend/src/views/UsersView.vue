@@ -116,11 +116,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useForm, Field } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notification'
+import { useAsyncLoad } from '@/composables/useAsyncLoad'
 import { usersApi } from '@/api/users'
 import type { User } from '@/api/types'
 import { createUserSchema } from '@/validation'
@@ -130,7 +131,6 @@ const authStore = useAuthStore()
 const notify = useNotificationStore()
 
 const users = ref<User[]>([])
-const loading = ref(false)
 const submitting = ref(false)
 const search = ref('')
 const dialogOpen = ref(false)
@@ -169,18 +169,11 @@ function roleColor(role: string): string {
   return map[role] ?? 'grey'
 }
 
-async function loadUsers() {
+const { loading, run: loadUsers } = useAsyncLoad(async () => {
   if (!authStore.clinicId) return
-  loading.value = true
-  try {
-    const { data } = await usersApi.list(authStore.clinicId)
-    users.value = data
-  } catch {
-    notify.error('Failed to load users')
-  } finally {
-    loading.value = false
-  }
-}
+  const { data } = await usersApi.list(authStore.clinicId)
+  users.value = data
+}, 'Failed to load users')
 
 // --- VeeValidate form ---
 const { handleSubmit, resetForm, errors } = useForm({
@@ -237,5 +230,4 @@ async function handleConfirmAction() {
   }
 }
 
-onMounted(loadUsers)
 </script>

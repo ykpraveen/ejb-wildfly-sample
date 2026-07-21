@@ -47,7 +47,7 @@ public class AppointmentManagementService {
     @Transactional
     public Appointment bookAppointment(Long clinicId, Long customerId, Long doctorId, Long scheduleId,
                                         LocalDate appointmentDate, LocalTime appointmentTime, LocalTime scheduleWindowStart,
-                                        LocalTime scheduleWindowEnd, String notes, String createdBy) {
+                                        LocalTime scheduleWindowEnd, Integer scheduleCapacity, String notes, String createdBy) {
         if (clinicId == null || customerId == null || doctorId == null || scheduleId == null || appointmentTime == null) {
             throw new BadRequestException("clinicId, customerId, doctorId, scheduleId, and appointmentTime are required");
         }
@@ -68,11 +68,12 @@ public class AppointmentManagementService {
         }
 
         Long dailyCount = em.createQuery(
-                        "SELECT COUNT(a) FROM Appointment a WHERE a.clinicId = :clinicId AND a.customerId = :customerId AND a.appointmentDate = :date AND a.deleted = false",
+                        "SELECT COUNT(a) FROM Appointment a WHERE a.clinicId = :clinicId AND a.customerId = :customerId AND a.appointmentDate = :date AND a.status != :cancelledStatus AND a.deleted = false",
                         Long.class)
                 .setParameter("clinicId", clinicId)
                 .setParameter("customerId", customerId)
                 .setParameter("date", appointmentDateActual)
+                .setParameter("cancelledStatus", AppointmentStatus.CANCELLED)
                 .getSingleResult();
         if (dailyCount >= MAX_DAILY_BOOKINGS_PER_CUSTOMER) {
             throw new BadRequestException("daily booking limit reached for customer");
@@ -89,6 +90,19 @@ public class AppointmentManagementService {
                 .getSingleResult();
         if (duplicateCount > 0) {
             throw new BadRequestException("doctor is already booked for this time slot");
+        }
+
+        if (scheduleCapacity != null) {
+            Long scheduleBookedCount = em.createQuery(
+                            "SELECT COUNT(a) FROM Appointment a WHERE a.clinicId = :clinicId AND a.scheduleId = :scheduleId AND a.status = :status AND a.deleted = false",
+                            Long.class)
+                    .setParameter("clinicId", clinicId)
+                    .setParameter("scheduleId", scheduleId)
+                    .setParameter("status", AppointmentStatus.BOOKED)
+                    .getSingleResult();
+            if (scheduleBookedCount >= scheduleCapacity) {
+                throw new BadRequestException("schedule has reached its booking capacity");
+            }
         }
 
         Appointment appointment = new Appointment();

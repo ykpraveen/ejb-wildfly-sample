@@ -1,4 +1,4 @@
-CREATE TABLE customers (
+CREATE TABLE customer_mgmt.customers (
     id BIGINT NOT NULL AUTO_INCREMENT,
     clinic_id BIGINT NOT NULL,
     full_name VARCHAR(120) NOT NULL,

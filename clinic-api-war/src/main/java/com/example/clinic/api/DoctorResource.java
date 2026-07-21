@@ -2,6 +2,8 @@ package com.example.clinic.api;
 
 import com.example.clinic.api.dto.CreateDoctorRequest;
 import com.example.clinic.api.dto.UpdateDoctorRequest;
+import com.example.clinic.audit.AuditService;
+import com.example.clinic.common.CorrelationIdFilter;
 import com.example.clinic.doctor.Doctor;
 import com.example.clinic.doctor.DoctorManagementService;
 import jakarta.annotation.security.RolesAllowed;
@@ -16,22 +18,37 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @Path("/doctors")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 public class DoctorResource {
+    private static final Logger LOG = Logger.getLogger(DoctorResource.class.getName());
+
     @Inject
     private DoctorManagementService doctorManagementService;
 
+    @Inject
+    private AuditService auditService;
+
     @POST
     @RolesAllowed({"ADMIN", "USER"})
-    public Response createDoctor(@Valid CreateDoctorRequest request) {
+    public Response createDoctor(
+            @Valid CreateDoctorRequest request,
+            @Context SecurityContext securityContext,
+            @Context HttpServletRequest httpRequest
+    ) {
+        TenantGuard.requireClinic(httpRequest, request.clinicId);
         Doctor doctor = doctorManagementService.createDoctor(
                 request.clinicId,
                 request.fullName,
@@ -40,6 +57,8 @@ public class DoctorResource {
                 request.active,
                 request.slotMinutes
         );
+        recordAudit(request.clinicId, securityContext, "DOCTOR_CREATED", doctor.getId(),
+                "username=" + doctor.getUsername());
         return Response.status(Response.Status.CREATED)
                 .entity(toPayload(doctor))
                 .build();
@@ -47,8 +66,25 @@ public class DoctorResource {
 
     @GET
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
-    public List<Map<String, Object>> listDoctors(@QueryParam("clinicId") Long clinicId) {
+    public List<Map<String, Object>> listDoctors(
+            @QueryParam("clinicId") Long clinicId,
+            @Context HttpServletRequest httpRequest
+    ) {
+        TenantGuard.requireClinic(httpRequest, clinicId);
         return doctorManagementService.listDoctors(clinicId).stream().map(this::toPayload).toList();
+    }
+
+    @GET
+    @Path("/me")
+    @RolesAllowed("DOCTOR")
+    public Map<String, Object> myProfile(
+            @QueryParam("clinicId") Long clinicId,
+            @Context SecurityContext securityContext,
+            @Context HttpServletRequest httpRequest
+    ) {
+        TenantGuard.requireClinic(httpRequest, clinicId);
+        Doctor doctor = doctorManagementService.findByUsername(clinicId, securityContext.getUserPrincipal().getName());
+        return toPayload(doctor);
     }
 
     @GET
@@ -56,8 +92,10 @@ public class DoctorResource {
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
     public Map<String, Object> getDoctor(
             @PathParam("doctorId") Long doctorId,
-            @QueryParam("clinicId") Long clinicId
+            @QueryParam("clinicId") Long clinicId,
+            @Context HttpServletRequest httpRequest
     ) {
+        TenantGuard.requireClinic(httpRequest, clinicId);
         Doctor doctor = doctorManagementService.findById(clinicId, doctorId);
         return toPayload(doctor);
     }
@@ -68,11 +106,15 @@ public class DoctorResource {
     public Map<String, Object> updateDoctor(
             @PathParam("doctorId") Long doctorId,
             @Valid UpdateDoctorRequest request,
-            @QueryParam("clinicId") Long clinicId
+            @QueryParam("clinicId") Long clinicId,
+            @Context SecurityContext securityContext,
+            @Context HttpServletRequest httpRequest
     ) {
+        TenantGuard.requireClinic(httpRequest, clinicId);
         Doctor doctor = doctorManagementService.updateDoctor(
                 clinicId, doctorId, request.fullName, request.specialty, request.active, request.slotMinutes
         );
+        recordAudit(clinicId, securityContext, "DOCTOR_UPDATED", doctorId, null);
         return toPayload(doctor);
     }
 
@@ -81,10 +123,30 @@ public class DoctorResource {
     @RolesAllowed("ADMIN")
     public Response deleteDoctor(
             @PathParam("doctorId") Long doctorId,
-            @QueryParam("clinicId") Long clinicId
+            @QueryParam("clinicId") Long clinicId,
+            @Context SecurityContext securityContext,
+            @Context HttpServletRequest httpRequest
     ) {
+        TenantGuard.requireClinic(httpRequest, clinicId);
         doctorManagementService.softDelete(clinicId, doctorId);
+        recordAudit(clinicId, securityContext, "DOCTOR_DELETED", doctorId, null);
         return Response.noContent().build();
+    }
+
+    private void recordAudit(Long clinicId, SecurityContext securityContext, String action, Long doctorId, String details) {
+        try {
+            auditService.record(
+                    clinicId,
+                    securityContext.getUserPrincipal().getName(),
+                    action,
+                    "Doctor",
+                    doctorId,
+                    CorrelationIdFilter.current(),
+                    details
+            );
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Failed to record audit entry for action: " + action, e);
+        }
     }
 
     private Map<String, Object> toPayload(Doctor doctor) {

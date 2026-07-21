@@ -106,11 +106,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useForm, Field } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notification'
+import { useAsyncLoad } from '@/composables/useAsyncLoad'
 import { doctorsApi } from '@/api/doctors'
 import type { Doctor } from '@/api/types'
 import { createDoctorSchema } from '@/validation'
@@ -120,7 +121,6 @@ const authStore = useAuthStore()
 const notify = useNotificationStore()
 
 const doctors = ref<Doctor[]>([])
-const loading = ref(false)
 const search = ref('')
 
 // --- Table ---
@@ -145,18 +145,11 @@ const filteredDoctors = computed(() => {
   )
 })
 
-async function loadDoctors() {
+const { loading, run: loadDoctors } = useAsyncLoad(async () => {
   if (!authStore.clinicId) return
-  loading.value = true
-  try {
-    const { data } = await doctorsApi.list(authStore.clinicId)
-    doctors.value = data
-  } catch {
-    notify.error('Failed to load doctors')
-  } finally {
-    loading.value = false
-  }
-}
+  const { data } = await doctorsApi.list(authStore.clinicId)
+  doctors.value = data
+}, 'Failed to load doctors')
 
 // --- VeeValidate form (shared for create & edit) ---
 const createForm = useForm({
@@ -240,5 +233,4 @@ async function handleDelete() {
   }
 }
 
-onMounted(loadDoctors)
 </script>

@@ -1,7 +1,13 @@
 import { z } from 'zod'
 
 export const usernameSchema = z.string().min(3).max(50)
-export const passwordSchema = z.string().min(8).max(100)
+// Mirrors the backend's PasswordPolicy: 8+ alphanumeric chars, at least one letter and one digit, no symbols.
+export const passwordSchema = z
+  .string()
+  .min(8)
+  .max(100)
+  .regex(/^[A-Za-z0-9]+$/, 'Password may only contain letters and numbers')
+  .regex(/(?=.*[A-Za-z])(?=.*[0-9])./, 'Password must contain at least one letter and one number')
 export const fullNameSchema = z.string().min(2).max(120)
 export const emailSchema = z.string().email().max(120)
 export const phoneSchema = z.string().max(30).optional().or(z.literal(''))

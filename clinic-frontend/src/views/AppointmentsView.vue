@@ -49,7 +49,7 @@
             {{ item.rescheduleCount }}
           </template>
           <template #item.actions="{ item }">
-            <template v-if="item.status === 'BOOKED'">
+            <template v-if="item.status === 'BOOKED' && canManageAppointments">
               <v-btn
                 icon="mdi-calendar-clock"
                 size="small"
@@ -103,9 +103,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notification'
+import { useAsyncLoad } from '@/composables/useAsyncLoad'
 import { appointmentsApi } from '@/api/appointments'
 import { customersApi } from '@/api/customers'
 import { doctorsApi } from '@/api/doctors'
@@ -117,7 +118,6 @@ const authStore = useAuthStore()
 const notify = useNotificationStore()
 
 const appointments = ref<Appointment[]>([])
-const loading = ref(false)
 const actionLoading = ref<string | null>(null)
 const search = ref('')
 const statusFilter = ref('ALL')
@@ -175,10 +175,14 @@ const filteredAppointments = computed(() => {
   return items
 })
 
-async function loadData() {
+const canManageAppointments = computed(
+  () => authStore.hasRole('ADMIN') || authStore.hasRole('USER') || authStore.hasRole('CUSTOMER'),
+)
+
+const { loading, run: loadData } = useAsyncLoad(async () => {
   if (!authStore.clinicId) return
-  loading.value = true
-  try {
+
+  if (authStore.hasRole('ADMIN') || authStore.hasRole('USER')) {
     const [appointmentsRes, customersRes, doctorsRes] = await Promise.all([
       appointmentsApi.list(authStore.clinicId),
       customersApi.list(authStore.clinicId),
@@ -187,12 +191,22 @@ async function loadData() {
     appointments.value = appointmentsRes.data
     customerMap.value = new Map(customersRes.data.map((c) => [c.id, c.fullName]))
     doctorMap.value = new Map(doctorsRes.data.map((d) => [d.id, d.fullName]))
-  } catch {
-    /* interceptor logged */
-  } finally {
-    loading.value = false
+  } else if (authStore.hasRole('CUSTOMER')) {
+    const [meRes, doctorsRes] = await Promise.all([
+      customersApi.me(authStore.clinicId),
+      doctorsApi.list(authStore.clinicId),
+    ])
+    const { data } = await appointmentsApi.listByCustomer(meRes.data.id, authStore.clinicId)
+    appointments.value = data
+    customerMap.value = new Map([[meRes.data.id, meRes.data.fullName]])
+    doctorMap.value = new Map(doctorsRes.data.map((d) => [d.id, d.fullName]))
+  } else if (authStore.hasRole('DOCTOR')) {
+    const meRes = await doctorsApi.me(authStore.clinicId)
+    const { data } = await appointmentsApi.listByDoctor(meRes.data.id, authStore.clinicId)
+    appointments.value = data
+    doctorMap.value = new Map([[meRes.data.id, meRes.data.fullName]])
   }
-}
+}, 'Failed to load appointments')
 
 function confirmCancel(item: Appointment) {
   cancelTarget.value = item
@@ -248,5 +262,4 @@ async function executeReschedule() {
   }
 }
 
-onMounted(loadData)
 </script>

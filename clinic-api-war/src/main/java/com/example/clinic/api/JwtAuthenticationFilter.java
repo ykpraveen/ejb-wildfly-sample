@@ -4,9 +4,11 @@ import com.example.clinic.security.JwtPrincipal;
 import com.example.clinic.security.JwtService;
 import jakarta.annotation.Priority;
 import jakarta.inject.Inject;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.Priorities;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.ContainerRequestFilter;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.Provider;
@@ -16,8 +18,14 @@ import java.io.IOException;
 @Provider
 @Priority(Priorities.AUTHENTICATION)
 public class JwtAuthenticationFilter implements ContainerRequestFilter {
+    /** HttpServletRequest attribute key holding the authenticated principal's clinicId (a Long). */
+    public static final String CLINIC_ID_ATTRIBUTE = "clinicId";
+
     @Inject
     private JwtService jwtService;
+
+    @Context
+    private HttpServletRequest httpRequest;
 
     @Override
     public void filter(ContainerRequestContext requestContext) throws IOException {
@@ -46,6 +54,6 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
         }
 
         requestContext.setSecurityContext(new TokenSecurityContext(principal, requestContext.getSecurityContext().isSecure()));
-        requestContext.setProperty("clinicId", principal.clinicId());
+        httpRequest.setAttribute(CLINIC_ID_ATTRIBUTE, principal.clinicId());
     }
 }

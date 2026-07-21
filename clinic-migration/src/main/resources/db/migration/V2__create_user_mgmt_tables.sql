@@ -1,4 +1,4 @@
-CREATE TABLE users (
+CREATE TABLE user_mgmt.users (
     id BIGINT NOT NULL AUTO_INCREMENT,
     clinic_id BIGINT NOT NULL,
     username VARCHAR(80) NOT NULL,
@@ -11,9 +11,9 @@ CREATE TABLE users (
     CONSTRAINT uk_users_clinic_username UNIQUE (clinic_id, username)
 );
 
-CREATE TABLE user_roles (
+CREATE TABLE user_mgmt.user_roles (
     user_id BIGINT NOT NULL,
     role_name VARCHAR(30) NOT NULL,
     PRIMARY KEY (user_id, role_name),
-    CONSTRAINT fk_user_roles_user FOREIGN KEY (user_id) REFERENCES users (id)
+    CONSTRAINT fk_user_roles_user FOREIGN KEY (user_id) REFERENCES user_mgmt.users (id)
 );

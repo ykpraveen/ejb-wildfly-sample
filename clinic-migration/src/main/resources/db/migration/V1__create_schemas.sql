@@ -1,1 +1,6 @@
--- Schemas removed: all tables now live in clinicdb
+CREATE SCHEMA IF NOT EXISTS user_mgmt;
+CREATE SCHEMA IF NOT EXISTS customer_mgmt;
+CREATE SCHEMA IF NOT EXISTS doctor_mgmt;
+CREATE SCHEMA IF NOT EXISTS schedule_mgmt;
+CREATE SCHEMA IF NOT EXISTS appointment_mgmt;
+CREATE SCHEMA IF NOT EXISTS audit_mgmt;

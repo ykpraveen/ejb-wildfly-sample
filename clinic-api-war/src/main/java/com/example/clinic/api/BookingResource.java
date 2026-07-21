@@ -9,23 +9,27 @@ import com.example.clinic.appointment.Appointment;
 import com.example.clinic.appointment.BookingSessionBean;
 import com.example.clinic.appointment.BookingSessionRegistry;
 import com.example.clinic.appointment.BookingSummary;
+import com.example.clinic.customer.Customer;
+import com.example.clinic.customer.CustomerManagementService;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ejb.EJB;
+import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 
-import java.time.LocalTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -37,9 +41,18 @@ public class BookingResource {
     @EJB
     private BookingSessionRegistry sessionRegistry;
 
+    @Inject
+    private CustomerManagementService customerManagementService;
+
     @POST
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
-    public Response startBooking(@Valid StartBookingRequest request) {
+    public Response startBooking(
+            @Valid StartBookingRequest request,
+            @Context SecurityContext securityContext,
+            @Context HttpServletRequest httpRequest
+    ) {
+        TenantGuard.requireClinic(httpRequest, request.clinicId);
+        enforceCustomerOwnership(securityContext, request.clinicId, request.customerId);
         String sessionId = sessionRegistry.createSession();
         BookingSessionBean session = sessionRegistry.getSession(sessionId);
         session.startBooking(request.clinicId, request.customerId);
@@ -51,17 +64,24 @@ public class BookingResource {
     @GET
     @Path("/{sessionId}")
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
-    public BookingSummary getSummary(@PathParam("sessionId") String sessionId) {
+    public BookingSummary getSummary(
+            @PathParam("sessionId") String sessionId,
+            @Context SecurityContext securityContext,
+            @Context HttpServletRequest httpRequest
+    ) {
         BookingSessionBean session = sessionRegistry.getSession(sessionId);
-        return session.getSummary(sessionId);
+        return assertSessionAccess(session, sessionId, securityContext, httpRequest);
     }
 
     @PUT
     @Path("/{sessionId}/doctor")
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
     public Map<String, String> selectDoctor(@PathParam("sessionId") String sessionId,
-                                            @Valid SelectDoctorRequest request) {
+                                            @Valid SelectDoctorRequest request,
+                                            @Context SecurityContext securityContext,
+                                            @Context HttpServletRequest httpRequest) {
         BookingSessionBean session = sessionRegistry.getSession(sessionId);
+        assertSessionAccess(session, sessionId, securityContext, httpRequest);
         session.selectDoctor(request.doctorId);
         return Map.of("status", "OK");
     }
@@ -70,8 +90,11 @@ public class BookingResource {
     @Path("/{sessionId}/schedule")
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
     public Map<String, String> selectSchedule(@PathParam("sessionId") String sessionId,
-                                              @Valid SelectScheduleRequest request) {
+                                              @Valid SelectScheduleRequest request,
+                                              @Context SecurityContext securityContext,
+                                              @Context HttpServletRequest httpRequest) {
         BookingSessionBean session = sessionRegistry.getSession(sessionId);
+        assertSessionAccess(session, sessionId, securityContext, httpRequest);
         session.selectSchedule(request.scheduleId);
         return Map.of("status", "OK");
     }
@@ -80,9 +103,12 @@ public class BookingResource {
     @Path("/{sessionId}/time")
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
     public Map<String, String> selectTime(@PathParam("sessionId") String sessionId,
-                                          @Valid SelectTimeRequest request) {
+                                          @Valid SelectTimeRequest request,
+                                          @Context SecurityContext securityContext,
+                                          @Context HttpServletRequest httpRequest) {
         BookingSessionBean session = sessionRegistry.getSession(sessionId);
-        session.selectTime(LocalTime.parse(request.appointmentTime));
+        assertSessionAccess(session, sessionId, securityContext, httpRequest);
+        session.selectTime(DateTimeParams.parseTime(request.appointmentTime, "appointmentTime"));
         return Map.of("status", "OK");
     }
 
@@ -90,8 +116,11 @@ public class BookingResource {
     @Path("/{sessionId}/notes")
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
     public Map<String, String> addNotes(@PathParam("sessionId") String sessionId,
-                                        @Valid AddNotesRequest request) {
+                                        @Valid AddNotesRequest request,
+                                        @Context SecurityContext securityContext,
+                                        @Context HttpServletRequest httpRequest) {
         BookingSessionBean session = sessionRegistry.getSession(sessionId);
+        assertSessionAccess(session, sessionId, securityContext, httpRequest);
         session.addNotes(request.notes);
         return Map.of("status", "OK");
     }
@@ -100,8 +129,10 @@ public class BookingResource {
     @Path("/{sessionId}/confirm")
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
     public Response confirmBooking(@PathParam("sessionId") String sessionId,
-                                   @Context SecurityContext securityContext) {
+                                   @Context SecurityContext securityContext,
+                                   @Context HttpServletRequest httpRequest) {
         BookingSessionBean session = sessionRegistry.getSession(sessionId);
+        assertSessionAccess(session, sessionId, securityContext, httpRequest);
         String actor = securityContext.getUserPrincipal().getName();
         Appointment appointment = session.confirmBooking(actor);
         sessionRegistry.removeSession(sessionId);
@@ -111,11 +142,38 @@ public class BookingResource {
     @DELETE
     @Path("/{sessionId}")
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
-    public Map<String, String> cancelBooking(@PathParam("sessionId") String sessionId) {
+    public Map<String, String> cancelBooking(@PathParam("sessionId") String sessionId,
+                                             @Context SecurityContext securityContext,
+                                             @Context HttpServletRequest httpRequest) {
         BookingSessionBean session = sessionRegistry.getSession(sessionId);
+        assertSessionAccess(session, sessionId, securityContext, httpRequest);
         session.cancel();
         sessionRegistry.removeSession(sessionId);
         return Map.of("status", "CANCELLED");
+    }
+
+    /**
+     * A booking session is created for one clinic/customer; every subsequent call on that
+     * sessionId must be made by the same tenant (and, for CUSTOMER-only callers, the same
+     * customer) — otherwise anyone holding a foreign sessionId could drive someone else's
+     * in-progress booking.
+     */
+    private BookingSummary assertSessionAccess(BookingSessionBean session, String sessionId,
+                                                SecurityContext securityContext, HttpServletRequest httpRequest) {
+        BookingSummary summary = session.getSummary(sessionId);
+        TenantGuard.requireClinic(httpRequest, summary.clinicId());
+        enforceCustomerOwnership(securityContext, summary.clinicId(), summary.customerId());
+        return summary;
+    }
+
+    private void enforceCustomerOwnership(SecurityContext securityContext, Long clinicId, Long customerId) {
+        if (securityContext.isUserInRole("ADMIN") || securityContext.isUserInRole("USER")) {
+            return;
+        }
+        Customer caller = customerManagementService.findByUsername(clinicId, securityContext.getUserPrincipal().getName());
+        if (!caller.getId().equals(customerId)) {
+            throw new ForbiddenException("customers may only access their own booking sessions");
+        }
     }
 
     private Map<String, Object> toPayload(Appointment appointment) {

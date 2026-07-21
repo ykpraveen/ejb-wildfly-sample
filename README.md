@@ -1,4 +1,4 @@
-# Clinic Appointment Backend (WildFly + EJB3)
+# Clinic Appointment Backend (WildFly + EJB 4.0)
 
 Modular REST backend built with Jakarta EE on WildFly, deployed as an EAR (WAR + EJB modules) with MySQL persistence.
 
@@ -6,7 +6,7 @@ Modular REST backend built with Jakarta EE on WildFly, deployed as an EAR (WAR +
 
 - Multi-module Maven project — each domain has its own EJB JAR with its own JPA persistence unit
 - Separate MySQL schema per module, shared datasource — multi-clinic support via `clinic_id` on every table
-- No cross-module JPA relationships — inter-module communication via service interfaces only
+- No cross-module JPA relationships — inter-module communication via service interfaces only. Trade-off: there are no DB-level foreign keys across schemas either, so e.g. soft-deleting a doctor or customer does not cascade or get blocked — it can leave existing `appointments` rows pointing at a soft-deleted `doctor_mgmt.doctors`/`customer_mgmt.customers` row. This is accepted as the cost of true per-module isolation.
 - Soft delete, UTC timestamps, correlation IDs on every error response
 - JWT-based auth with role enforcement: `ADMIN`, `USER`, `CUSTOMER`, `DOCTOR`
 - Appointment business rules: no double-booking, schedule window validation, lead time, cancellation cutoff, reschedule limit, per-day booking cap
@@ -17,7 +17,7 @@ Modular REST backend built with Jakarta EE on WildFly, deployed as an EAR (WAR +
 |---|---|
 | Runtime | WildFly 35.0.1 (Jakarta EE 10) |
 | Language | Java 21 (`maven.compiler.release=21`) |
-| Business | EJB3 `@Stateless` beans with `@Transactional` |
+| Business | EJB 4.0 `@Stateless` beans with `@Transactional` |
 | REST | JAX-RS (RESTEasy) via `@Path` resources |
 | Persistence | JPA/Hibernate 6.2 with Flyway schema migrations |
 | Auth | JWT tokens (custom `JwtService` + `JwtAuthenticationFilter`) |
@@ -29,15 +29,15 @@ Modular REST backend built with Jakarta EE on WildFly, deployed as an EAR (WAR +
 
 ```
 ejb-wildfly-sample/
-├── pom.xml                          # Parent POM (multi-module, EJB 3.2)
+├── pom.xml                          # Parent POM (multi-module, EJB 4.0)
 ├── docker-compose.yml               # MySQL + WildFly + Adminer
 ├── cli/
-│   ├── configure-datasource.cli     # WildFly CLI script for datasource setup
-│   ├── setup-wildfly.sh             # Shell wrapper for CLI script
+│   ├── configure-datasource-full.cli # WildFly CLI script for datasource setup (standalone-full.xml)
 │   └── wildfly-entrypoint.sh        # Docker entrypoint: auto-configures datasource + starts WildFly
-├── clinic-common/                   # Shared: ApiError, CorrelationIdFilter, AuditEntry
+├── clinic-common/                   # Shared: ApiError, CorrelationIdFilter
 ├── clinic-security/                 # JwtService, JwtPrincipal
 ├── clinic-bom/                      # Bill of materials
+├── clinic-audit-ejb/                # Persistent audit log (AuditService)
 ├── clinic-user-management-ejb/      # User management (login, seed admin)
 ├── clinic-customer-management-ejb/  # Customer CRUD
 ├── clinic-doctor-management-ejb/    # Doctor CRUD + specialties
@@ -57,19 +57,22 @@ ejb-wildfly-sample/
 
 Cross-module JPA `@ManyToOne` / `@OneToMany` relationships are intentionally avoided. Each module owns its own tables and entities.
 
+**Invariant: never call directly from one module's `@Transactional` EJB method into another module's service.** Each module has its own plain (non-XA) datasource, and WildFly/Narayana cannot enlist two non-XA resources in one JTA transaction — doing so would fail at runtime with a "more than one local transaction" error. This currently holds only because every cross-module call originates from a non-transactional caller (a JAX-RS resource in `clinic-api-war`, or a `BookingSessionBean` method that touches at most one other module's service per invocation) — each such call is its own independent top-level transaction. `AuditService.record` is deliberately `@TransactionAttribute(REQUIRES_NEW)` for the same reason: it always runs in its own transaction regardless of caller.
+
 ### JPA persistence units
 
 Each EJB module defines its own `persistence.xml` with a dedicated persistence unit:
 
-| Module | Persistence Unit | Schema |
-|---|---|---|
-| clinic-user-management-ejb | `userMgmtPU` | `user_mgmt` |
-| clinic-customer-management-ejb | `customerMgmtPU` | `customer_mgmt` |
-| clinic-doctor-management-ejb | `doctorMgmtPU` | `doctor_mgmt` |
-| clinic-schedule-management-ejb | `scheduleMgmtPU` | `schedule_mgmt` |
-| clinic-appointment-management-ejb | `appointmentMgmtPU` | `appointment_mgmt` |
+| Module | Persistence Unit | JNDI Datasource | Schema |
+|---|---|---|---|
+| clinic-user-management-ejb | `userMgmtPU` | `UserMgmtDS` | `user_mgmt` |
+| clinic-customer-management-ejb | `customerMgmtPU` | `CustomerMgmtDS` | `customer_mgmt` |
+| clinic-doctor-management-ejb | `doctorMgmtPU` | `DoctorMgmtDS` | `doctor_mgmt` |
+| clinic-schedule-management-ejb | `scheduleMgmtPU` | `ScheduleMgmtDS` | `schedule_mgmt` |
+| clinic-appointment-management-ejb | `appointmentMgmtPU` | `AppointmentMgmtDS` | `appointment_mgmt` |
+| clinic-audit-ejb | `auditMgmtPU` | `AuditMgmtDS` | `audit_mgmt` |
 
-All persistence units share the same `ClinicDS` JNDI datasource in the `clinicdb` database. Schema is managed by Flyway migrations (`clinic-migration` module).
+Each persistence unit has its own dedicated JNDI datasource, and each datasource's JDBC URL connects directly to that module's own MySQL database (e.g. `jdbc:mysql://mysql:3306/user_mgmt`) — so entities don't need a `@Table(schema = ...)` qualifier; the connection's own default database resolves unqualified table names correctly. All six datasources authenticate as the same MySQL `root` user (isolation between modules is organizational — separate connections/JNDI names — not access-controlled at the DB level). The six schemas are created by `V1__create_schemas.sql`, and every other migration creates its tables directly inside the schema it owns. The `clinicdb` database named in the Flyway/MySQL container's JDBC URL holds only Flyway's own `flyway_schema_history` bookkeeping table, not any domain data.
 
 ## Seed data
 
@@ -154,9 +157,15 @@ The booking wizard provides a multi-step appointment booking flow using server-s
 
 The wizard uses a `@Stateful` EJB (`BookingSessionBean`) stored in a `@Singleton` registry. Sessions are in-memory and not persisted — they expire when the server restarts.
 
+### Audit log (ADMIN)
+
+- `GET /audit?clinicId=&entityType=&entityId=&actor=&limit=` — Query the persistent audit trail (`entityType`/`entityId`/`actor`/`limit` are optional filters, capped at 200 rows)
+
+Every create/update/delete/activate/deactivate across users, customers, doctors, and schedules is recorded synchronously by the REST layer. Appointment lifecycle changes (book/cancel/reschedule) are recorded asynchronously by `AppointmentEventMDB` off the JMS queue below; status updates and deletes are recorded synchronously since they don't publish an event. Audit writes run in their own transaction (`clinic-audit-ejb`, `AuditService.record`, `REQUIRES_NEW`) so a failure to write an audit row never rolls back the business operation that triggered it.
+
 ### JMS Event Processing
 
-Appointment state changes (book, cancel, reschedule) publish events to the `java:/jms/queue/AppointmentEvents` JMS queue. An `AppointmentEventMDB` consumes these events and logs structured audit entries.
+Appointment state changes (book, cancel, reschedule) publish events to the `java:/jms/queue/AppointmentEvents` JMS queue. An `AppointmentEventMDB` consumes these events and persists them as audit log entries.
 
 Events are JSON-serialized `AppointmentEvent` records containing: `eventType`, `appointmentId`, `clinicId`, `customerId`, `doctorId`, `scheduleId`, `appointmentDate`, `appointmentTime`, `status`, `actor`, `correlationId`, and `timestamp`.
 
@@ -187,7 +196,7 @@ This starts MySQL → Flyway → WildFly in sequence:
 
 | Service | Port | Description |
 |---|---|---|
-| `clinic-mysql` | 3306 | MySQL 8.4 with `clinicdb` database |
+| `clinic-mysql` | 3306 | MySQL 8.4 — one server, one MySQL user, six per-module schemas (see [JPA persistence units](#jpa-persistence-units)) |
 | `clinic-flyway` | — | Flyway schema migrations (runs once at startup) |
 | `clinic-wildfly` | 8080 (HTTP), 9990 (admin) | WildFly 35.0.1 |
 | `clinic-adminer` | 8081 | DB admin UI (`--profile tools` to start) |
@@ -198,16 +207,16 @@ This starts MySQL → Flyway → WildFly in sequence:
 
 1. Downloads the MySQL JDBC driver from Maven Central (if not cached)
 2. Installs it as a WildFly module (`com.mysql.mysql-connector-j`) with a `module.xml` descriptor
-3. Registers the `ClinicDS` datasource via an embed-server CLI script
+3. Registers the six per-module datasources (`UserMgmtDS`, `CustomerMgmtDS`, `DoctorMgmtDS`, `ScheduleMgmtDS`, `AppointmentMgmtDS`, `AuditMgmtDS`) via an embed-server CLI script
 4. Cleans stale deployment markers
 5. Starts WildFly in the foreground with `standalone-full.xml` (required for JMS/MDB support)
 
-No manual CLI steps needed. On subsequent restarts, the script detects the existing driver and datasource and skips reconfiguration.
+No manual CLI steps needed. On subsequent restarts, the script checks that all six datasources are present and skips reconfiguration if so.
 
 If you need to reconfigure manually:
 
 ```bash
-docker exec -i clinic-wildfly /opt/jboss/wildfly/bin/jboss-cli.sh --connect --command="/subsystem=datasources/data-source=ClinicDS:test-connection-in-pool"
+docker exec -i clinic-wildfly /opt/jboss/wildfly/bin/jboss-cli.sh --connect --command="/subsystem=datasources/data-source=AppointmentMgmtDS:test-connection-in-pool"
 ```
 
 ### Build and deploy
@@ -237,22 +246,34 @@ docker exec clinic-wildfly ls /opt/jboss/wildfly/standalone/deployments/
 # WildFly logs
 docker logs -f clinic-wildfly
 
-# Reconfigure datasource (if needed)
+# Reconfigure datasource (if needed) — repeat per datasource name, or list them all:
 docker exec -i clinic-wildfly /opt/jboss/wildfly/bin/jboss-cli.sh --connect \
-  --command="/subsystem=datasources/data-source=ClinicDS:test-connection-in-pool"
+  --command="/subsystem=datasources:read-children-names(child-type=data-source)"
 
 # Connect to MySQL
-docker exec -it clinic-mysql mysql -uroot -proot123 clinicdb
+docker exec -it clinic-mysql mysql -uroot -proot123
 
-# Query tables
-docker exec clinic-mysql mysql -uroot -proot123 clinicdb -e "SHOW TABLES;"
+# Query tables in a given module's schema
+docker exec clinic-mysql mysql -uroot -proot123 -e "SHOW TABLES FROM appointment_mgmt;"
+
+# List all clinic schemas
+docker exec clinic-mysql mysql -uroot -proot123 -e "SHOW SCHEMAS;"
 
 # Open Adminer (DB admin UI)
 # Available at http://localhost:8081 when started with --profile tools
 docker compose --profile tools up -d adminer
 
-# Run smoke tests (32 tests)
+# Run smoke tests (34 tests)
 ./smoke-tests.sh
+```
+
+### Resetting the local database
+
+Flyway only ever moves forward — if a migration file's content changes after it's already been applied (e.g. pulling an updated branch that edited an existing `V*.sql`), Flyway will fail with a checksum/validation error on the next `docker compose up`. Since this is local dev-only data, the fix is to wipe the MySQL volume and let every migration re-apply from scratch:
+
+```bash
+docker compose down -v   # drops the mysql_data volume — all local data is lost
+docker compose up -d
 ```
 
 ## Smoke tests

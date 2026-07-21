@@ -29,6 +29,12 @@
         </dependency>
         <dependency>
             <groupId>com.example.clinic</groupId>
+            <artifactId>clinic-audit-ejb</artifactId>
+            <version>${project.version}</version>
+            <type>ejb</type>
+        </dependency>
+        <dependency>
+            <groupId>com.example.clinic</groupId>
             <artifactId>clinic-user-management-ejb</artifactId>
             <version>${project.version}</version>
             <type>ejb</type>
@@ -77,6 +83,10 @@
                         <ejbModule>
                             <groupId>com.example.clinic</groupId>
                             <artifactId>clinic-security</artifactId>
+                        </ejbModule>
+                        <ejbModule>
+                            <groupId>com.example.clinic</groupId>
+                            <artifactId>clinic-audit-ejb</artifactId>
                         </ejbModule>
                         <ejbModule>
                             <groupId>com.example.clinic</groupId>

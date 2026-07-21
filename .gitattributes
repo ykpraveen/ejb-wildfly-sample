@@ -1,0 +1,7 @@
+# Force LF line endings regardless of the checking-out machine's OS/git config.
+# Docker mounts cli/*.sh straight into the Linux WildFly container (docker-compose.yml),
+# and /bin/bash fails on CRLF-terminated scripts ("bad interpreter" errors).
+* text=auto eol=lf
+
+*.sh text eol=lf
+*.cli text eol=lf

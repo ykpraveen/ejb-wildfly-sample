@@ -17,6 +17,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
+// Each of doctorService/scheduleService/appointmentService lives on its own non-XA datasource.
+// Every method here must call at most ONE of them — WildFly/Narayana can't enlist two non-XA
+// resources in a single JTA transaction, so touching two in one method would fail at runtime.
 @Stateful
 @ConcurrencyManagement(ConcurrencyManagementType.CONTAINER)
 public class BookingSessionBean {
@@ -38,6 +41,7 @@ public class BookingSessionBean {
     private LocalDate scheduleDate;
     private LocalTime scheduleStartTime;
     private LocalTime scheduleEndTime;
+    private Integer scheduleCapacity;
     private LocalTime selectedTime;
     private String notes;
     private boolean completed;
@@ -68,6 +72,7 @@ public class BookingSessionBean {
         this.scheduleDate = null;
         this.scheduleStartTime = null;
         this.scheduleEndTime = null;
+        this.scheduleCapacity = null;
         this.selectedTime = null;
     }
 
@@ -86,6 +91,7 @@ public class BookingSessionBean {
         this.scheduleDate = schedule.getAvailableDate();
         this.scheduleStartTime = schedule.getStartTime();
         this.scheduleEndTime = schedule.getEndTime();
+        this.scheduleCapacity = schedule.getCapacity();
         this.selectedTime = null;
     }
 
@@ -143,7 +149,7 @@ public class BookingSessionBean {
         }
         Appointment appointment = appointmentService.bookAppointment(
                 clinicId, customerId, doctorId, scheduleId,
-                scheduleDate, selectedTime, scheduleStartTime, scheduleEndTime,
+                scheduleDate, selectedTime, scheduleStartTime, scheduleEndTime, scheduleCapacity,
                 notes, createdBy
         );
         this.completed = true;
