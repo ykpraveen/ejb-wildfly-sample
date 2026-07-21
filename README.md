@@ -1,6 +1,8 @@
-# Clinic Appointment Backend (WildFly + EJB 4.0)
+# Clinic Appointment System (WildFly + EJB 4.0 backend, Vue 3 frontend)
 
-Modular REST backend built with Jakarta EE on WildFly, deployed as an EAR (WAR + EJB modules) with MySQL persistence.
+Modular REST backend built with Jakarta EE on WildFly, deployed as an EAR (WAR + EJB modules) with MySQL persistence, paired with a Vue 3 + Vuetify SPA frontend (`clinic-frontend/`).
+
+📝 Write-up: [I Ran From EJB2 to Spring to Quarkus. Then I Went Back. Here's What I Found.](https://dev.to/ykpraveen/i-ran-from-ejb2-to-spring-then-i-went-back-heres-what-i-found-3n7f) — a storytelling walkthrough of the EJB 3 vs. 4 decision, MDBs, and Stateful Session Beans, using this project as the running example.
 
 ## Why this design
 
@@ -44,7 +46,8 @@ ejb-wildfly-sample/
 ├── clinic-schedule-management-ejb/  # Doctor schedule management
 ├── clinic-appointment-management-ejb/ # Appointment booking + business rules
 ├── clinic-api-war/                  # REST layer: resources, DTOs, JWT filter, OpenAPI
-└── clinic-app-ear/                  # EAR packaging (deployed to WildFly)
+├── clinic-app-ear/                  # EAR packaging (deployed to WildFly)
+└── clinic-frontend/                 # Vue 3 + Vuetify SPA (talks to the API over /clinic-api)
 ```
 
 ### Module communication
@@ -274,6 +277,49 @@ Flyway only ever moves forward — if a migration file's content changes after i
 ```bash
 docker compose down -v   # drops the mysql_data volume — all local data is lost
 docker compose up -d
+```
+
+## Frontend
+
+`clinic-frontend/` is a Vue 3 + TypeScript SPA for the clinic staff/customer/doctor-facing UI (login, dashboard, doctors, customers, schedules, appointments, booking wizard, audit log).
+
+### Tech stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Vue 3 (Composition API) + TypeScript |
+| Build tool | Vite |
+| UI components | Vuetify |
+| State | Pinia (with `pinia-plugin-persistedstate` for auth) |
+| Routing | Vue Router, route guards on `meta.roles` |
+| Forms | vee-validate + zod schemas |
+| HTTP | axios |
+
+### Prerequisites
+
+- Node.js `^22.18.0` or `>=24.12.0` (see `clinic-frontend/package.json` `engines`)
+- The backend running (see [Docker setup](#docker-setup)) — the dev server proxies API calls to it
+
+### Run the dev server
+
+```bash
+cd clinic-frontend
+npm install
+npm run dev
+```
+
+The app serves at `http://localhost:3000`. Vite's dev server proxies any request under `/clinic-api` to `http://localhost:8080` (the WildFly backend), configured in `clinic-frontend/vite.config.ts` — no `.env` or CORS setup needed for local development.
+
+Log in with any of the [seed accounts](#seed-data) (e.g. `admin` / `Admin123`, clinic ID `1`).
+
+### Other scripts
+
+```bash
+npm run build        # type-check + production build (dist/)
+npm run preview       # preview the production build locally
+npm run test:unit     # Vitest unit tests
+npm run lint          # oxlint + eslint --fix
+npm run format        # prettier
 ```
 
 ## Smoke tests
