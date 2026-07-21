@@ -109,6 +109,7 @@ const navItems: NavItem[] = [
   { to: '/appointments', icon: 'mdi-calendar-check', title: 'Appointments', roles: ['ADMIN', 'USER', 'CUSTOMER', 'DOCTOR'] },
   { to: '/bookings', icon: 'mdi-plus-circle', title: 'Book Appointment', roles: ['ADMIN', 'USER', 'CUSTOMER'] },
   { to: '/users', icon: 'mdi-account-cog', title: 'Users', roles: ['ADMIN'] },
+  { to: '/audit', icon: 'mdi-history', title: 'Audit Log', roles: ['ADMIN'] },
 ]
 
 const filteredNavItems = computed(() => {

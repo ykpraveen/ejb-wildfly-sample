@@ -38,6 +38,7 @@ ejb-wildfly-sample/
 ├── clinic-common/                   # Shared: ApiError, CorrelationIdFilter, AuditEntry
 ├── clinic-security/                 # JwtService, JwtPrincipal
 ├── clinic-bom/                      # Bill of materials
+├── clinic-audit-ejb/                # Persistent audit log (AuditService)
 ├── clinic-user-management-ejb/      # User management (login, seed admin)
 ├── clinic-customer-management-ejb/  # Customer CRUD
 ├── clinic-doctor-management-ejb/    # Doctor CRUD + specialties
@@ -68,6 +69,7 @@ Each EJB module defines its own `persistence.xml` with a dedicated persistence u
 | clinic-doctor-management-ejb | `doctorMgmtPU` | `doctor_mgmt` |
 | clinic-schedule-management-ejb | `scheduleMgmtPU` | `schedule_mgmt` |
 | clinic-appointment-management-ejb | `appointmentMgmtPU` | `appointment_mgmt` |
+| clinic-audit-ejb | `auditMgmtPU` | `audit_mgmt` |
 
 All persistence units share the same `ClinicDS` JNDI datasource in the `clinicdb` database. Schema is managed by Flyway migrations (`clinic-migration` module).
 
@@ -154,9 +156,15 @@ The booking wizard provides a multi-step appointment booking flow using server-s
 
 The wizard uses a `@Stateful` EJB (`BookingSessionBean`) stored in a `@Singleton` registry. Sessions are in-memory and not persisted — they expire when the server restarts.
 
+### Audit log (ADMIN)
+
+- `GET /audit?clinicId=&entityType=&entityId=&actor=&limit=` — Query the persistent audit trail (`entityType`/`entityId`/`actor`/`limit` are optional filters, capped at 200 rows)
+
+Every create/update/delete/activate/deactivate across users, customers, doctors, and schedules is recorded synchronously by the REST layer. Appointment lifecycle changes (book/cancel/reschedule) are recorded asynchronously by `AppointmentEventMDB` off the JMS queue below; status updates and deletes are recorded synchronously since they don't publish an event. Audit writes run in their own transaction (`clinic-audit-ejb`, `AuditService.record`, `REQUIRES_NEW`) so a failure to write an audit row never rolls back the business operation that triggered it.
+
 ### JMS Event Processing
 
-Appointment state changes (book, cancel, reschedule) publish events to the `java:/jms/queue/AppointmentEvents` JMS queue. An `AppointmentEventMDB` consumes these events and logs structured audit entries.
+Appointment state changes (book, cancel, reschedule) publish events to the `java:/jms/queue/AppointmentEvents` JMS queue. An `AppointmentEventMDB` consumes these events and persists them as audit log entries.
 
 Events are JSON-serialized `AppointmentEvent` records containing: `eventType`, `appointmentId`, `clinicId`, `customerId`, `doctorId`, `scheduleId`, `appointmentDate`, `appointmentTime`, `status`, `actor`, `correlationId`, and `timestamp`.
 

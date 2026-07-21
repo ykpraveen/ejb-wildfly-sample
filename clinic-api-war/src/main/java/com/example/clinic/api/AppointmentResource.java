@@ -6,6 +6,8 @@ import com.example.clinic.api.dto.UpdateAppointmentStatusRequest;
 import com.example.clinic.appointment.Appointment;
 import com.example.clinic.appointment.AppointmentManagementService;
 import com.example.clinic.appointment.AppointmentStatus;
+import com.example.clinic.audit.AuditService;
+import com.example.clinic.common.CorrelationIdFilter;
 import com.example.clinic.schedule.DoctorSchedule;
 import com.example.clinic.schedule.ScheduleManagementService;
 import jakarta.annotation.security.RolesAllowed;
@@ -30,16 +32,23 @@ import java.time.LocalTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @Path("/appointments")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 public class AppointmentResource {
+    private static final Logger LOG = Logger.getLogger(AppointmentResource.class.getName());
+
     @Inject
     private AppointmentManagementService appointmentManagementService;
 
     @Inject
     private ScheduleManagementService scheduleManagementService;
+
+    @Inject
+    private AuditService auditService;
 
     @POST
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
@@ -139,7 +148,8 @@ public class AppointmentResource {
     public Map<String, Object> updateStatus(
             @PathParam("appointmentId") Long appointmentId,
             @Valid UpdateAppointmentStatusRequest request,
-            @QueryParam("clinicId") Long clinicId
+            @QueryParam("clinicId") Long clinicId,
+            @Context SecurityContext securityContext
     ) {
         AppointmentStatus status;
         try {
@@ -148,6 +158,8 @@ public class AppointmentResource {
             throw new BadRequestException("invalid status: " + request.status);
         }
         Appointment appointment = appointmentManagementService.updateStatus(clinicId, appointmentId, status);
+        recordAudit(clinicId, securityContext, "APPOINTMENT_STATUS_UPDATED", appointmentId,
+                "status=" + status.name());
         return toPayload(appointment);
     }
 
@@ -156,10 +168,28 @@ public class AppointmentResource {
     @RolesAllowed("ADMIN")
     public Response deleteAppointment(
             @PathParam("appointmentId") Long appointmentId,
-            @QueryParam("clinicId") Long clinicId
+            @QueryParam("clinicId") Long clinicId,
+            @Context SecurityContext securityContext
     ) {
         appointmentManagementService.softDelete(clinicId, appointmentId);
+        recordAudit(clinicId, securityContext, "APPOINTMENT_DELETED", appointmentId, null);
         return Response.noContent().build();
+    }
+
+    private void recordAudit(Long clinicId, SecurityContext securityContext, String action, Long appointmentId, String details) {
+        try {
+            auditService.record(
+                    clinicId,
+                    securityContext.getUserPrincipal().getName(),
+                    action,
+                    "Appointment",
+                    appointmentId,
+                    CorrelationIdFilter.current(),
+                    details
+            );
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Failed to record audit entry for action: " + action, e);
+        }
     }
 
     private Map<String, Object> toPayload(Appointment appointment) {

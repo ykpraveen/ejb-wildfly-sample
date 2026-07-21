@@ -26,6 +26,10 @@
         </dependency>
         <dependency>
             <groupId>com.example.clinic</groupId>
+            <artifactId>clinic-audit-ejb</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.example.clinic</groupId>
             <artifactId>clinic-doctor-management-ejb</artifactId>
         </dependency>
         <dependency>

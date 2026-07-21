@@ -2,6 +2,8 @@ package com.example.clinic.api;
 
 import com.example.clinic.api.dto.ActivateUserRequest;
 import com.example.clinic.api.dto.CreateUserRequest;
+import com.example.clinic.audit.AuditService;
+import com.example.clinic.common.CorrelationIdFilter;
 import com.example.clinic.user.UserAccount;
 import com.example.clinic.user.UserManagementService;
 import jakarta.inject.Inject;
@@ -22,13 +24,20 @@ import jakarta.ws.rs.core.SecurityContext;
 
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @Path("/users")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 public class UserResource {
+    private static final Logger LOG = Logger.getLogger(UserResource.class.getName());
+
     @Inject
     private UserManagementService userManagementService;
+
+    @Inject
+    private AuditService auditService;
 
     @POST
     public Map<String, Object> createUser(@Valid CreateUserRequest request, @Context SecurityContext securityContext) {
@@ -40,6 +49,7 @@ public class UserResource {
                 request.password,
                 request.roles
         );
+        recordAudit(request.clinicId, securityContext, "USER_CREATED", user.getId(), "username=" + user.getUsername());
         return toPayload(user);
     }
 
@@ -56,6 +66,7 @@ public class UserResource {
         }
 
         UserAccount user = userManagementService.activateUser(request.clinicId, userId);
+        recordAudit(request.clinicId, securityContext, "USER_ACTIVATED", userId, null);
         return toPayload(user);
     }
 
@@ -72,6 +83,7 @@ public class UserResource {
         }
 
         UserAccount user = userManagementService.deactivateUser(request.clinicId, userId);
+        recordAudit(request.clinicId, securityContext, "USER_DEACTIVATED", userId, null);
         return toPayload(user);
     }
 
@@ -85,6 +97,22 @@ public class UserResource {
             throw new BadRequestException("clinicId query param is required");
         }
         return userManagementService.listUsers(clinicId).stream().map(this::toPayload).toList();
+    }
+
+    private void recordAudit(Long clinicId, SecurityContext securityContext, String action, Long userId, String details) {
+        try {
+            auditService.record(
+                    clinicId,
+                    securityContext.getUserPrincipal().getName(),
+                    action,
+                    "User",
+                    userId,
+                    CorrelationIdFilter.current(),
+                    details
+            );
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Failed to record audit entry for action: " + action, e);
+        }
     }
 
     private void assertAdmin(SecurityContext securityContext) {

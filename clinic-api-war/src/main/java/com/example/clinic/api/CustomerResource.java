@@ -2,6 +2,8 @@ package com.example.clinic.api;
 
 import com.example.clinic.api.dto.CreateCustomerRequest;
 import com.example.clinic.api.dto.UpdateCustomerRequest;
+import com.example.clinic.audit.AuditService;
+import com.example.clinic.common.CorrelationIdFilter;
 import com.example.clinic.customer.Customer;
 import com.example.clinic.customer.CustomerManagementService;
 import jakarta.annotation.security.RolesAllowed;
@@ -23,17 +25,24 @@ import jakarta.ws.rs.core.SecurityContext;
 
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @Path("/customers")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 public class CustomerResource {
+    private static final Logger LOG = Logger.getLogger(CustomerResource.class.getName());
+
     @Inject
     private CustomerManagementService customerManagementService;
 
+    @Inject
+    private AuditService auditService;
+
     @POST
     @RolesAllowed({"ADMIN", "USER"})
-    public Response createCustomer(@Valid CreateCustomerRequest request) {
+    public Response createCustomer(@Valid CreateCustomerRequest request, @Context SecurityContext securityContext) {
         Customer customer = customerManagementService.createCustomer(
                 request.clinicId,
                 request.fullName,
@@ -41,6 +50,8 @@ public class CustomerResource {
                 request.email,
                 request.phone
         );
+        recordAudit(request.clinicId, securityContext, "CUSTOMER_CREATED", customer.getId(),
+                "username=" + customer.getUsername());
         return Response.status(Response.Status.CREATED)
                 .entity(toPayload(customer))
                 .build();
@@ -80,11 +91,13 @@ public class CustomerResource {
     public Map<String, Object> updateCustomer(
             @PathParam("customerId") Long customerId,
             @Valid UpdateCustomerRequest request,
-            @QueryParam("clinicId") Long clinicId
+            @QueryParam("clinicId") Long clinicId,
+            @Context SecurityContext securityContext
     ) {
         Customer customer = customerManagementService.updateCustomer(
                 clinicId, customerId, request.fullName, request.email, request.phone
         );
+        recordAudit(clinicId, securityContext, "CUSTOMER_UPDATED", customerId, null);
         return toPayload(customer);
     }
 
@@ -93,10 +106,28 @@ public class CustomerResource {
     @RolesAllowed("ADMIN")
     public Response deleteCustomer(
             @PathParam("customerId") Long customerId,
-            @QueryParam("clinicId") Long clinicId
+            @QueryParam("clinicId") Long clinicId,
+            @Context SecurityContext securityContext
     ) {
         customerManagementService.softDelete(clinicId, customerId);
+        recordAudit(clinicId, securityContext, "CUSTOMER_DELETED", customerId, null);
         return Response.noContent().build();
+    }
+
+    private void recordAudit(Long clinicId, SecurityContext securityContext, String action, Long customerId, String details) {
+        try {
+            auditService.record(
+                    clinicId,
+                    securityContext.getUserPrincipal().getName(),
+                    action,
+                    "Customer",
+                    customerId,
+                    CorrelationIdFilter.current(),
+                    details
+            );
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Failed to record audit entry for action: " + action, e);
+        }
     }
 
     private Map<String, Object> toPayload(Customer customer) {

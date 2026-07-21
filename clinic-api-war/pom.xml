@@ -33,6 +33,13 @@
         </dependency>
         <dependency>
             <groupId>com.example.clinic</groupId>
+            <artifactId>clinic-audit-ejb</artifactId>
+            <version>${project.version}</version>
+            <type>ejb</type>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.example.clinic</groupId>
             <artifactId>clinic-user-management-ejb</artifactId>
             <version>${project.version}</version>
             <type>ejb</type>
