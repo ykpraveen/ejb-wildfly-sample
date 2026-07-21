@@ -43,6 +43,7 @@ public class DoctorResource {
     @POST
     @RolesAllowed({"ADMIN", "USER"})
     public Response createDoctor(@Valid CreateDoctorRequest request, @Context SecurityContext securityContext) {
+        TenantGuard.requireClinic(securityContext, request.clinicId);
         Doctor doctor = doctorManagementService.createDoctor(
                 request.clinicId,
                 request.fullName,
@@ -60,7 +61,11 @@ public class DoctorResource {
 
     @GET
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
-    public List<Map<String, Object>> listDoctors(@QueryParam("clinicId") Long clinicId) {
+    public List<Map<String, Object>> listDoctors(
+            @QueryParam("clinicId") Long clinicId,
+            @Context SecurityContext securityContext
+    ) {
+        TenantGuard.requireClinic(securityContext, clinicId);
         return doctorManagementService.listDoctors(clinicId).stream().map(this::toPayload).toList();
     }
 
@@ -69,8 +74,10 @@ public class DoctorResource {
     @RolesAllowed({"ADMIN", "USER", "CUSTOMER"})
     public Map<String, Object> getDoctor(
             @PathParam("doctorId") Long doctorId,
-            @QueryParam("clinicId") Long clinicId
+            @QueryParam("clinicId") Long clinicId,
+            @Context SecurityContext securityContext
     ) {
+        TenantGuard.requireClinic(securityContext, clinicId);
         Doctor doctor = doctorManagementService.findById(clinicId, doctorId);
         return toPayload(doctor);
     }
@@ -84,6 +91,7 @@ public class DoctorResource {
             @QueryParam("clinicId") Long clinicId,
             @Context SecurityContext securityContext
     ) {
+        TenantGuard.requireClinic(securityContext, clinicId);
         Doctor doctor = doctorManagementService.updateDoctor(
                 clinicId, doctorId, request.fullName, request.specialty, request.active, request.slotMinutes
         );
@@ -99,6 +107,7 @@ public class DoctorResource {
             @QueryParam("clinicId") Long clinicId,
             @Context SecurityContext securityContext
     ) {
+        TenantGuard.requireClinic(securityContext, clinicId);
         doctorManagementService.softDelete(clinicId, doctorId);
         recordAudit(clinicId, securityContext, "DOCTOR_DELETED", doctorId, null);
         return Response.noContent().build();

@@ -53,17 +53,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { useNotificationStore } from '@/stores/notification'
+import { useAsyncLoad } from '@/composables/useAsyncLoad'
 import { auditApi } from '@/api/audit'
 import type { AuditLogEntry } from '@/api/types'
 
 const authStore = useAuthStore()
-const notify = useNotificationStore()
 
 const entries = ref<AuditLogEntry[]>([])
-const loading = ref(false)
 const entityTypeFilter = ref('')
 const actorFilter = ref('')
 
@@ -76,21 +74,12 @@ const headers = [
   { title: 'Details', key: 'details' },
 ]
 
-async function loadEntries() {
+const { loading, run: loadEntries } = useAsyncLoad(async () => {
   if (!authStore.clinicId) return
-  loading.value = true
-  try {
-    const { data } = await auditApi.list(authStore.clinicId, {
-      entityType: entityTypeFilter.value || undefined,
-      actor: actorFilter.value || undefined,
-    })
-    entries.value = data
-  } catch {
-    notify.error('Failed to load audit log')
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(loadEntries)
+  const { data } = await auditApi.list(authStore.clinicId, {
+    entityType: entityTypeFilter.value || undefined,
+    actor: actorFilter.value || undefined,
+  })
+  entries.value = data
+}, 'Failed to load audit log')
 </script>

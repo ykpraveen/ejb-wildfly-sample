@@ -149,11 +149,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useForm, Field } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notification'
+import { useAsyncLoad } from '@/composables/useAsyncLoad'
 import { schedulesApi } from '@/api/schedules'
 import { doctorsApi } from '@/api/doctors'
 import type { DoctorSchedule, Doctor } from '@/api/types'
@@ -167,8 +168,6 @@ const doctorsList = ref<Doctor[]>([])
 const schedules = ref<DoctorSchedule[]>([])
 const selectedDoctorId = ref<number | null>(null)
 const search = ref('')
-const loadingDoctors = ref(false)
-const loadingSchedules = ref(false)
 const submittingCreate = ref(false)
 const submittingEdit = ref(false)
 const showCreate = ref(false)
@@ -208,31 +207,17 @@ const editForm = useForm({
   initialValues: { startTime: '', endTime: '', capacity: 1 },
 })
 
-async function loadDoctors() {
+const { loading: loadingDoctors, run: loadDoctors } = useAsyncLoad(async () => {
   if (!authStore.clinicId) return
-  loadingDoctors.value = true
-  try {
-    const { data } = await doctorsApi.list(authStore.clinicId)
-    doctorsList.value = data
-  } catch {
-    notify.error('Failed to load doctors')
-  } finally {
-    loadingDoctors.value = false
-  }
-}
+  const { data } = await doctorsApi.list(authStore.clinicId)
+  doctorsList.value = data
+}, 'Failed to load doctors')
 
-async function loadSchedules() {
+const { loading: loadingSchedules, run: loadSchedules } = useAsyncLoad(async () => {
   if (!authStore.clinicId || !selectedDoctorId.value) return
-  loadingSchedules.value = true
-  try {
-    const { data } = await schedulesApi.list(selectedDoctorId.value, authStore.clinicId)
-    schedules.value = data
-  } catch {
-    notify.error('Failed to load schedules')
-  } finally {
-    loadingSchedules.value = false
-  }
-}
+  const { data } = await schedulesApi.list(selectedDoctorId.value, authStore.clinicId)
+  schedules.value = data
+}, 'Failed to load schedules', false)
 
 function onDoctorChange() {
   search.value = ''
@@ -316,5 +301,4 @@ async function handleDelete() {
   }
 }
 
-onMounted(loadDoctors)
 </script>

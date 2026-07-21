@@ -19,6 +19,10 @@ public class TokenSecurityContext implements SecurityContext {
         return () -> principal.username();
     }
 
+    public Long getClinicId() {
+        return principal.clinicId();
+    }
+
     @Override
     public boolean isUserInRole(String role) {
         return principal.roles().contains(role);

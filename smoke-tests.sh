@@ -414,6 +414,47 @@ assert_status "Empty body rejected" "400" "$CODE" "$BODY"
 assert_json_field "Error code" "code" "REQUEST_ERROR" "$BODY"
 
 # ─────────────────────────────────────────────────────────────────────────────
+header "33. Audit trail records the doctor creation"
+# ─────────────────────────────────────────────────────────────────────────────
+RESP=$(curl -s -w "\n%{http_code}" -H "$AUTH" \
+  "$BASE/audit?clinicId=1&entityType=Doctor&entityId=$DOC_ID")
+BODY=$(echo "$RESP" | head -n-1)
+CODE=$(echo "$RESP" | tail -1)
+assert_status "GET /audit" "200" "$CODE" "$BODY"
+AUDIT_ACTION=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['action'] if d else '')" 2>/dev/null || true)
+if [ "$AUDIT_ACTION" = "DOCTOR_CREATED" ]; then
+  green "  PASS: Audit entry recorded (action=DOCTOR_CREATED)"
+  PASS=$((PASS + 1))
+else
+  red "  FAIL: Expected a DOCTOR_CREATED audit entry, got action='$AUDIT_ACTION'"
+  FAIL=$((FAIL + 1))
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+header "34. Role-forbidden access (403)"
+# ─────────────────────────────────────────────────────────────────────────────
+# Activate the USER-only account created in test 29, then confirm it cannot hit an ADMIN-only endpoint
+RESP=$(curl -s -w "\n%{http_code}" -X PATCH "$BASE/users/$USER_ID/activate" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"clinicId":1}')
+BODY=$(echo "$RESP" | head -n-1)
+CODE=$(echo "$RESP" | tail -1)
+assert_status "PATCH /users/{id}/activate" "200" "$CODE" "$BODY"
+
+RESP=$(curl -s -w "\n%{http_code}" -X POST "$BASE/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"clinicId":1,"username":"testuser","password":"Test123456"}')
+BODY=$(echo "$RESP" | head -n-1)
+CODE=$(echo "$RESP" | tail -1)
+assert_status "POST /auth/login (testuser)" "200" "$CODE" "$BODY"
+USER_TOKEN=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin)['accessToken'])")
+
+RESP=$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer $USER_TOKEN" "$BASE/users?clinicId=1")
+BODY=$(echo "$RESP" | head -n-1)
+CODE=$(echo "$RESP" | tail -1)
+assert_status "USER role forbidden from GET /users" "403" "$CODE" "$BODY"
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Summary
 # ─────────────────────────────────────────────────────────────────────────────
 echo ""

@@ -8,7 +8,6 @@ import com.example.clinic.user.UserAccount;
 import com.example.clinic.user.UserManagementService;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
-import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.GET;
@@ -42,6 +41,7 @@ public class UserResource {
     @POST
     public Map<String, Object> createUser(@Valid CreateUserRequest request, @Context SecurityContext securityContext) {
         assertAdmin(securityContext);
+        TenantGuard.requireClinic(securityContext, request.clinicId);
 
         UserAccount user = userManagementService.createUser(
                 request.clinicId,
@@ -61,9 +61,7 @@ public class UserResource {
             @Context SecurityContext securityContext
     ) {
         assertAdmin(securityContext);
-        if (request == null || request.clinicId == null) {
-            throw new BadRequestException("clinicId is required");
-        }
+        TenantGuard.requireClinic(securityContext, request == null ? null : request.clinicId);
 
         UserAccount user = userManagementService.activateUser(request.clinicId, userId);
         recordAudit(request.clinicId, securityContext, "USER_ACTIVATED", userId, null);
@@ -78,9 +76,7 @@ public class UserResource {
             @Context SecurityContext securityContext
     ) {
         assertAdmin(securityContext);
-        if (request == null || request.clinicId == null) {
-            throw new BadRequestException("clinicId is required");
-        }
+        TenantGuard.requireClinic(securityContext, request == null ? null : request.clinicId);
 
         UserAccount user = userManagementService.deactivateUser(request.clinicId, userId);
         recordAudit(request.clinicId, securityContext, "USER_DEACTIVATED", userId, null);
@@ -93,9 +89,7 @@ public class UserResource {
             @Context SecurityContext securityContext
     ) {
         assertAdmin(securityContext);
-        if (clinicId == null) {
-            throw new BadRequestException("clinicId query param is required");
-        }
+        TenantGuard.requireClinic(securityContext, clinicId);
         return userManagementService.listUsers(clinicId).stream().map(this::toPayload).toList();
     }
 

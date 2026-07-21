@@ -6,7 +6,7 @@ Modular REST backend built with Jakarta EE on WildFly, deployed as an EAR (WAR +
 
 - Multi-module Maven project — each domain has its own EJB JAR with its own JPA persistence unit
 - Separate MySQL schema per module, shared datasource — multi-clinic support via `clinic_id` on every table
-- No cross-module JPA relationships — inter-module communication via service interfaces only
+- No cross-module JPA relationships — inter-module communication via service interfaces only. Trade-off: there are no DB-level foreign keys across schemas either, so e.g. soft-deleting a doctor or customer does not cascade or get blocked — it can leave existing `appointments` rows pointing at a soft-deleted `doctor_mgmt.doctors`/`customer_mgmt.customers` row. This is accepted as the cost of true per-module isolation.
 - Soft delete, UTC timestamps, correlation IDs on every error response
 - JWT-based auth with role enforcement: `ADMIN`, `USER`, `CUSTOMER`, `DOCTOR`
 - Appointment business rules: no double-booking, schedule window validation, lead time, cancellation cutoff, reschedule limit, per-day booking cap
@@ -32,10 +32,9 @@ ejb-wildfly-sample/
 ├── pom.xml                          # Parent POM (multi-module, EJB 4.0)
 ├── docker-compose.yml               # MySQL + WildFly + Adminer
 ├── cli/
-│   ├── configure-datasource.cli     # WildFly CLI script for datasource setup
-│   ├── setup-wildfly.sh             # Shell wrapper for CLI script
+│   ├── configure-datasource-full.cli # WildFly CLI script for datasource setup (standalone-full.xml)
 │   └── wildfly-entrypoint.sh        # Docker entrypoint: auto-configures datasource + starts WildFly
-├── clinic-common/                   # Shared: ApiError, CorrelationIdFilter, AuditEntry
+├── clinic-common/                   # Shared: ApiError, CorrelationIdFilter
 ├── clinic-security/                 # JwtService, JwtPrincipal
 ├── clinic-bom/                      # Bill of materials
 ├── clinic-audit-ejb/                # Persistent audit log (AuditService)
@@ -195,7 +194,7 @@ This starts MySQL → Flyway → WildFly in sequence:
 
 | Service | Port | Description |
 |---|---|---|
-| `clinic-mysql` | 3306 | MySQL 8.4 with `clinicdb` database |
+| `clinic-mysql` | 3306 | MySQL 8.4 — one server, one MySQL user, six per-module schemas (see [JPA persistence units](#jpa-persistence-units)) |
 | `clinic-flyway` | — | Flyway schema migrations (runs once at startup) |
 | `clinic-wildfly` | 8080 (HTTP), 9990 (admin) | WildFly 35.0.1 |
 | `clinic-adminer` | 8081 | DB admin UI (`--profile tools` to start) |
@@ -262,8 +261,17 @@ docker exec clinic-mysql mysql -uroot -proot123 -e "SHOW SCHEMAS;"
 # Available at http://localhost:8081 when started with --profile tools
 docker compose --profile tools up -d adminer
 
-# Run smoke tests (32 tests)
+# Run smoke tests (34 tests)
 ./smoke-tests.sh
+```
+
+### Resetting the local database
+
+Flyway only ever moves forward — if a migration file's content changes after it's already been applied (e.g. pulling an updated branch that edited an existing `V*.sql`), Flyway will fail with a checksum/validation error on the next `docker compose up`. Since this is local dev-only data, the fix is to wipe the MySQL volume and let every migration re-apply from scratch:
+
+```bash
+docker compose down -v   # drops the mysql_data volume — all local data is lost
+docker compose up -d
 ```
 
 ## Smoke tests

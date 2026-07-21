@@ -13,7 +13,7 @@ embed-server --std-out=echo --server-config=standalone-full.xml
     connection-url="jdbc:mysql://mysql:3306/clinicdb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC", \
     driver-name=mysql, \
     user-name="root", \
-    password="root123", \
+    password="${env.MYSQL_ROOT_PASSWORD}", \
     enabled=true, \
     statistics-enabled=false, \
     background-validation=false)

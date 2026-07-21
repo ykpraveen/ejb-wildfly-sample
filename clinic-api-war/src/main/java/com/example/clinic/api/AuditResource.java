@@ -8,7 +8,9 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.SecurityContext;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,8 +29,10 @@ public class AuditResource {
             @QueryParam("entityType") String entityType,
             @QueryParam("entityId") Long entityId,
             @QueryParam("actor") String actor,
-            @QueryParam("limit") Integer limit
+            @QueryParam("limit") Integer limit,
+            @Context SecurityContext securityContext
     ) {
+        TenantGuard.requireClinic(securityContext, clinicId);
         return auditService.list(clinicId, entityType, entityId, actor, limit).stream()
                 .map(this::toPayload).toList();
     }

@@ -6,14 +6,14 @@ services:
     container_name: clinic-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
       MYSQL_DATABASE: clinicdb
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot123"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root123}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -32,7 +32,7 @@ services:
     command: >
       -url=jdbc:mysql://mysql:3306/clinicdb
       -user=root
-      -password=root123
+      -password=${MYSQL_ROOT_PASSWORD:-root123}
       -connectRetries=10
       migrate
     networks:
@@ -45,6 +45,8 @@ services:
     depends_on:
       flyway:
         condition: service_completed_successfully
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
     ports:
       - "8080:8080"
       - "9990:9990"
@@ -52,6 +54,13 @@ services:
     volumes:
       - ./clinic-app-ear/target/clinic-app.ear:/opt/jboss/wildfly/standalone/deployments/clinic-app.ear:ro
       - ./cli:/opt/jboss/wildfly/standalone/configuration/cli
+      - wildfly_modules:/opt/jboss/wildfly/modules
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/clinic-api/api/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
     networks:
       - clinic-net
 
@@ -71,6 +80,7 @@ services:
 
 volumes:
   mysql_data:
+  wildfly_modules:
 
 networks:
   clinic-net:

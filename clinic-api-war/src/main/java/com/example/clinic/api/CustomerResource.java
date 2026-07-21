@@ -43,6 +43,7 @@ public class CustomerResource {
     @POST
     @RolesAllowed({"ADMIN", "USER"})
     public Response createCustomer(@Valid CreateCustomerRequest request, @Context SecurityContext securityContext) {
+        TenantGuard.requireClinic(securityContext, request.clinicId);
         Customer customer = customerManagementService.createCustomer(
                 request.clinicId,
                 request.fullName,
@@ -59,7 +60,11 @@ public class CustomerResource {
 
     @GET
     @RolesAllowed({"ADMIN", "USER"})
-    public List<Map<String, Object>> listCustomers(@QueryParam("clinicId") Long clinicId) {
+    public List<Map<String, Object>> listCustomers(
+            @QueryParam("clinicId") Long clinicId,
+            @Context SecurityContext securityContext
+    ) {
+        TenantGuard.requireClinic(securityContext, clinicId);
         return customerManagementService.listCustomers(clinicId).stream().map(this::toPayload).toList();
     }
 
@@ -68,8 +73,10 @@ public class CustomerResource {
     @RolesAllowed({"ADMIN", "USER"})
     public Map<String, Object> getCustomer(
             @PathParam("customerId") Long customerId,
-            @QueryParam("clinicId") Long clinicId
+            @QueryParam("clinicId") Long clinicId,
+            @Context SecurityContext securityContext
     ) {
+        TenantGuard.requireClinic(securityContext, clinicId);
         Customer customer = customerManagementService.findById(clinicId, customerId);
         return toPayload(customer);
     }
@@ -81,6 +88,7 @@ public class CustomerResource {
             @QueryParam("clinicId") Long clinicId,
             @Context SecurityContext securityContext
     ) {
+        TenantGuard.requireClinic(securityContext, clinicId);
         Customer customer = customerManagementService.findByUsername(clinicId, securityContext.getUserPrincipal().getName());
         return toPayload(customer);
     }
@@ -94,6 +102,7 @@ public class CustomerResource {
             @QueryParam("clinicId") Long clinicId,
             @Context SecurityContext securityContext
     ) {
+        TenantGuard.requireClinic(securityContext, clinicId);
         Customer customer = customerManagementService.updateCustomer(
                 clinicId, customerId, request.fullName, request.email, request.phone
         );
@@ -109,6 +118,7 @@ public class CustomerResource {
             @QueryParam("clinicId") Long clinicId,
             @Context SecurityContext securityContext
     ) {
+        TenantGuard.requireClinic(securityContext, clinicId);
         customerManagementService.softDelete(clinicId, customerId);
         recordAudit(clinicId, securityContext, "CUSTOMER_DELETED", customerId, null);
         return Response.noContent().build();

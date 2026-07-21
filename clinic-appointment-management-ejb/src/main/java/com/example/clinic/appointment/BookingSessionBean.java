@@ -38,6 +38,7 @@ public class BookingSessionBean {
     private LocalDate scheduleDate;
     private LocalTime scheduleStartTime;
     private LocalTime scheduleEndTime;
+    private Integer scheduleCapacity;
     private LocalTime selectedTime;
     private String notes;
     private boolean completed;
@@ -68,6 +69,7 @@ public class BookingSessionBean {
         this.scheduleDate = null;
         this.scheduleStartTime = null;
         this.scheduleEndTime = null;
+        this.scheduleCapacity = null;
         this.selectedTime = null;
     }
 
@@ -86,6 +88,7 @@ public class BookingSessionBean {
         this.scheduleDate = schedule.getAvailableDate();
         this.scheduleStartTime = schedule.getStartTime();
         this.scheduleEndTime = schedule.getEndTime();
+        this.scheduleCapacity = schedule.getCapacity();
         this.selectedTime = null;
     }
 
@@ -143,7 +146,7 @@ public class BookingSessionBean {
         }
         Appointment appointment = appointmentService.bookAppointment(
                 clinicId, customerId, doctorId, scheduleId,
-                scheduleDate, selectedTime, scheduleStartTime, scheduleEndTime,
+                scheduleDate, selectedTime, scheduleStartTime, scheduleEndTime, scheduleCapacity,
                 notes, createdBy
         );
         this.completed = true;
