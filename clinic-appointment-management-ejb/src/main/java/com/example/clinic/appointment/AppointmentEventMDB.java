@@ -47,9 +47,10 @@ public class AppointmentEventMDB implements MessageListener {
 
             try {
                 String details = "doctorId=" + event.doctorId() + ", customerId=" + event.customerId();
+                String actor = event.actor() != null && !event.actor().isBlank() ? event.actor() : "system";
                 auditService.record(
                         event.clinicId(),
-                        "system",
+                        actor,
                         event.eventType(),
                         "Appointment",
                         event.appointmentId(),
