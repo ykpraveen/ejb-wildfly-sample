@@ -13,7 +13,7 @@ class AppointmentEventTest {
         Appointment appointment = createTestAppointment();
         Instant before = Instant.now();
 
-        AppointmentEvent event = AppointmentEvent.of("APPOINTMENT_BOOKED", appointment, "corr-abc");
+        AppointmentEvent event = AppointmentEvent.of("APPOINTMENT_BOOKED", appointment, "corr-abc", "alice");
 
         assertEquals("APPOINTMENT_BOOKED", event.eventType());
         assertEquals(1L, event.appointmentId());
@@ -21,6 +21,7 @@ class AppointmentEventTest {
         assertEquals(20L, event.customerId());
         assertEquals(30L, event.doctorId());
         assertEquals("corr-abc", event.correlationId());
+        assertEquals("alice", event.actor());
         assertNotNull(event.timestamp());
         assertFalse(event.timestamp().isBefore(before));
     }
@@ -30,16 +31,16 @@ class AppointmentEventTest {
         Appointment appointment = createTestAppointment();
         Instant now = Instant.now();
 
-        AppointmentEvent a = new AppointmentEvent("TYPE", 1L, 10L, 20L, 30L, "corr", now);
-        AppointmentEvent b = new AppointmentEvent("TYPE", 1L, 10L, 20L, 30L, "corr", now);
+        AppointmentEvent a = new AppointmentEvent("TYPE", 1L, 10L, 20L, 30L, "corr", "alice", now);
+        AppointmentEvent b = new AppointmentEvent("TYPE", 1L, 10L, 20L, 30L, "corr", "alice", now);
         assertEquals(a, b);
     }
 
     @Test
     void differentCorrelationIdMakesEventsNotEqual() {
         Instant now = Instant.now();
-        AppointmentEvent a = new AppointmentEvent("TYPE", 1L, 10L, 20L, 30L, "corr-1", now);
-        AppointmentEvent b = new AppointmentEvent("TYPE", 1L, 10L, 20L, 30L, "corr-2", now);
+        AppointmentEvent a = new AppointmentEvent("TYPE", 1L, 10L, 20L, 30L, "corr-1", "alice", now);
+        AppointmentEvent b = new AppointmentEvent("TYPE", 1L, 10L, 20L, 30L, "corr-2", "alice", now);
         assertNotEquals(a, b);
     }
 

@@ -120,7 +120,7 @@ public class AppointmentManagementService {
         appointment.setCreatedAt(Instant.now());
         appointment.setUpdatedAt(Instant.now());
         em.persist(appointment);
-        sendEvent("APPOINTMENT_BOOKED", appointment);
+        sendEvent("APPOINTMENT_BOOKED", appointment, createdBy);
         return appointment;
     }
 
@@ -174,7 +174,7 @@ public class AppointmentManagementService {
     }
 
     @Transactional
-    public Appointment cancelAppointment(Long clinicId, Long appointmentId) {
+    public Appointment cancelAppointment(Long clinicId, Long appointmentId, String actor) {
         Appointment appointment = findById(clinicId, appointmentId);
         if (appointment.getStatus() != AppointmentStatus.BOOKED) {
             throw new BadRequestException("only BOOKED appointments can be cancelled");
@@ -185,13 +185,13 @@ public class AppointmentManagementService {
         }
         appointment.setStatus(AppointmentStatus.CANCELLED);
         appointment.setUpdatedAt(Instant.now());
-        sendEvent("APPOINTMENT_CANCELLED", appointment);
+        sendEvent("APPOINTMENT_CANCELLED", appointment, actor);
         return appointment;
     }
 
     @Transactional
     public Appointment reschedule(Long clinicId, Long appointmentId, LocalTime newTime,
-                                   LocalTime scheduleWindowStart, LocalTime scheduleWindowEnd) {
+                                   LocalTime scheduleWindowStart, LocalTime scheduleWindowEnd, String actor) {
         if (newTime == null) {
             throw new BadRequestException("newTime is required");
         }
@@ -226,7 +226,7 @@ public class AppointmentManagementService {
         appointment.setAppointmentTime(newTime);
         appointment.setRescheduleCount(appointment.getRescheduleCount() + 1);
         appointment.setUpdatedAt(Instant.now());
-        sendEvent("APPOINTMENT_RESCHEDULED", appointment);
+        sendEvent("APPOINTMENT_RESCHEDULED", appointment, actor);
         return appointment;
     }
 
@@ -248,10 +248,10 @@ public class AppointmentManagementService {
         appointment.setUpdatedAt(Instant.now());
     }
 
-    private void sendEvent(String eventType, Appointment appointment) {
+    private void sendEvent(String eventType, Appointment appointment, String actor) {
         try {
             AppointmentEvent event = AppointmentEvent.of(eventType, appointment,
-                    CorrelationIdFilter.current());
+                    CorrelationIdFilter.current(), actor);
             String json = jsonb.toJson(event);
             jmsContext.createProducer().send(appointmentEventsQueue,
                     jmsContext.createTextMessage(json));

@@ -157,7 +157,8 @@ public class AppointmentResource {
         TenantGuard.requireClinic(httpRequest, clinicId);
         Appointment existing = appointmentManagementService.findById(clinicId, appointmentId);
         enforceCustomerOwnership(securityContext, clinicId, existing.getCustomerId());
-        Appointment appointment = appointmentManagementService.cancelAppointment(clinicId, appointmentId);
+        Appointment appointment = appointmentManagementService.cancelAppointment(
+                clinicId, appointmentId, securityContext.getUserPrincipal().getName());
         return toPayload(appointment);
     }
 
@@ -177,7 +178,8 @@ public class AppointmentResource {
         DoctorSchedule schedule = scheduleManagementService.findById(clinicId, existing.getScheduleId());
         Appointment appointment = appointmentManagementService.reschedule(
                 clinicId, appointmentId, DateTimeParams.parseTime(request.newTime, "newTime"),
-                schedule.getStartTime(), schedule.getEndTime()
+                schedule.getStartTime(), schedule.getEndTime(),
+                securityContext.getUserPrincipal().getName()
         );
         return toPayload(appointment);
     }

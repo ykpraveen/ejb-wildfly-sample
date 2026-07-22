@@ -9,9 +9,10 @@ public record AppointmentEvent(
         Long customerId,
         Long doctorId,
         String correlationId,
+        String actor,
         Instant timestamp
 ) {
-    public static AppointmentEvent of(String eventType, Appointment appointment, String correlationId) {
+    public static AppointmentEvent of(String eventType, Appointment appointment, String correlationId, String actor) {
         return new AppointmentEvent(
                 eventType,
                 appointment.getId(),
@@ -19,6 +20,7 @@ public record AppointmentEvent(
                 appointment.getCustomerId(),
                 appointment.getDoctorId(),
                 correlationId,
+                actor,
                 Instant.now()
         );
     }
