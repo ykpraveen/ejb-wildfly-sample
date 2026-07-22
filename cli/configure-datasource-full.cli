@@ -1,6 +1,10 @@
 # WildFly MySQL Datasource Configuration for standalone-full.xml
 # Creates one datasource per schema for proper multi-schema MySQL support.
 # The MySQL JDBC driver module must already exist before this runs.
+#
+# ${env.MYSQL_ROOT_PASSWORD} / ${env.CS_MASTER_PASSWORD} below are template placeholders
+# substituted with literal values by wildfly-entrypoint.sh before this file reaches
+# jboss-cli — not live WildFly expressions resolved at runtime.
 
 embed-server --std-out=echo --server-config=standalone-full.xml
 

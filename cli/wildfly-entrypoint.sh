@@ -76,8 +76,21 @@ else
     echo "[entrypoint] Restoring clean standalone-full.xml before configuring..."
     cp "$CONFIG_BAK" "$CONFIG_XML"
 
+    # jboss-cli's add-alias secret-value (and possibly other attributes) do not reliably
+    # resolve ${env.X} expressions the way EXPRESSION-typed resource attributes do, so
+    # substitute the real values here in bash before jboss-cli ever sees the script —
+    # this guarantees literal secrets, never an unresolved "${env.X}" string.
+    CLI_SRC="/opt/jboss/wildfly/standalone/configuration/cli/configure-datasource-full.cli"
+    CLI_RESOLVED="/tmp/configure-datasource-full.resolved.cli"
+
+    cli_content="$(cat "$CLI_SRC")"
+    cli_content="${cli_content//\$\{env.MYSQL_ROOT_PASSWORD\}/$MYSQL_ROOT_PASSWORD}"
+    cli_content="${cli_content//\$\{env.CS_MASTER_PASSWORD\}/$CS_MASTER_PASSWORD}"
+    printf '%s\n' "$cli_content" > "$CLI_RESOLVED"
+
     echo "[entrypoint] Configuring datasources via embed-server..."
-    "$JBOSS_CLI" --file=/opt/jboss/wildfly/standalone/configuration/cli/configure-datasource-full.cli
+    "$JBOSS_CLI" --file="$CLI_RESOLVED"
+    rm -f "$CLI_RESOLVED"
     echo "[entrypoint] Datasource configuration complete."
 fi
 
