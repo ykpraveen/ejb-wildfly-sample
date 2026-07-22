@@ -76,12 +76,44 @@ else
     echo "[entrypoint] Restoring clean standalone-full.xml before configuring..."
     cp "$CONFIG_BAK" "$CONFIG_XML"
 
+    # jboss-cli's add-alias secret-value (and possibly other attributes) do not reliably
+    # resolve ${env.X} expressions the way EXPRESSION-typed resource attributes do, so
+    # substitute the real values here in bash before jboss-cli ever sees the script —
+    # this guarantees literal secrets, never an unresolved "${env.X}" string.
+    CLI_SRC="/opt/jboss/wildfly/standalone/configuration/cli/configure-datasource-full.cli"
+    CLI_RESOLVED="/tmp/configure-datasource-full.resolved.cli"
+
+    cli_content="$(cat "$CLI_SRC")"
+    cli_content="${cli_content//\$\{env.MYSQL_ROOT_PASSWORD\}/$MYSQL_ROOT_PASSWORD}"
+    cli_content="${cli_content//\$\{env.CS_MASTER_PASSWORD\}/$CS_MASTER_PASSWORD}"
+    printf '%s\n' "$cli_content" > "$CLI_RESOLVED"
+
     echo "[entrypoint] Configuring datasources via embed-server..."
-    "$JBOSS_CLI" --file=/opt/jboss/wildfly/standalone/configuration/cli/configure-datasource-full.cli
+    "$JBOSS_CLI" --file="$CLI_RESOLVED"
+    rm -f "$CLI_RESOLVED"
     echo "[entrypoint] Datasource configuration complete."
 fi
 
-# ── Step 5: Clean stale deployment markers ───────────────────────────────────
+# ── Step 5: Ensure management console admin user exists ──────────────────────
+# Guarded on the properties file itself so re-running the entrypoint on container
+# restart (not recreate) never tries to add the same user twice.
+
+MGMT_USERS_FILE="$WILDFLY_HOME/standalone/configuration/mgmt-users.properties"
+ADMIN_USER="${WILDFLY_ADMIN_USER:-admin}"
+
+if [ -n "${WILDFLY_ADMIN_PASSWORD:-}" ]; then
+    if grep -q "^${ADMIN_USER}=" "$MGMT_USERS_FILE" 2>/dev/null; then
+        echo "[entrypoint] Management user '$ADMIN_USER' already configured."
+    else
+        echo "[entrypoint] Creating management user '$ADMIN_USER'..."
+        "$WILDFLY_HOME/bin/add-user.sh" -u "$ADMIN_USER" -p "$WILDFLY_ADMIN_PASSWORD" -g admin -s
+        echo "[entrypoint] Management user created."
+    fi
+else
+    echo "[entrypoint] WILDFLY_ADMIN_PASSWORD not set, skipping management user creation."
+fi
+
+# ── Step 6: Clean stale deployment markers ───────────────────────────────────
 
 DEPLOYMENTS_DIR="$WILDFLY_HOME/standalone/deployments"
 echo "[entrypoint] Cleaning deployment markers..."
@@ -101,7 +133,7 @@ for artifact in "$DEPLOYMENTS_DIR"/*.ear "$DEPLOYMENTS_DIR"/*.war; do
     fi
 done
 
-# ── Step 6: Start WildFly ────────────────────────────────────────────────────
+# ── Step 7: Start WildFly ────────────────────────────────────────────────────
 
 echo "[entrypoint] Starting WildFly in foreground..."
 exec "$WILDFLY_HOME/bin/standalone.sh" -c standalone-full.xml -b 0.0.0.0 -bmanagement 0.0.0.0

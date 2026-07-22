@@ -47,6 +47,9 @@ services:
         condition: service_completed_successfully
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      CS_MASTER_PASSWORD: ${CS_MASTER_PASSWORD:-changeit}
+      WILDFLY_ADMIN_USER: ${WILDFLY_ADMIN_USER:-admin}
+      WILDFLY_ADMIN_PASSWORD: ${WILDFLY_ADMIN_PASSWORD:-}
     ports:
       - "8080:8080"
       - "9990:9990"

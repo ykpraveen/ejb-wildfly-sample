@@ -1,11 +1,24 @@
 # WildFly MySQL Datasource Configuration for standalone-full.xml
 # Creates one datasource per schema for proper multi-schema MySQL support.
 # The MySQL JDBC driver module must already exist before this runs.
+#
+# ${env.MYSQL_ROOT_PASSWORD} / ${env.CS_MASTER_PASSWORD} below are template placeholders
+# substituted with literal values by wildfly-entrypoint.sh before this file reaches
+# jboss-cli — not live WildFly expressions resolved at runtime.
 
 embed-server --std-out=echo --server-config=standalone-full.xml
 
 # Register JDBC driver
 /subsystem=datasources/jdbc-driver=mysql:add(driver-name=mysql,driver-module-name=com.mysql.mysql-connector-j,driver-class-name=com.mysql.cj.jdbc.Driver)
+
+# Elytron credential store: holds the MySQL root password encrypted at rest so it
+# never appears as plaintext in standalone-full.xml once this script has run.
+/subsystem=elytron/credential-store=mysqlCS:add( \
+    location="${jboss.server.config.dir}/mysql-cs.jceks", \
+    credential-reference={clear-text="${env.CS_MASTER_PASSWORD}"}, \
+    create=true)
+
+/subsystem=elytron/credential-store=mysqlCS:add-alias(alias=mysql-root-pw, secret-value="${env.MYSQL_ROOT_PASSWORD}")
 
 # User Management datasource
 /subsystem=datasources/data-source=UserMgmtDS:add( \
@@ -13,7 +26,7 @@ embed-server --std-out=echo --server-config=standalone-full.xml
     connection-url="jdbc:mysql://mysql:3306/user_mgmt?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC", \
     driver-name=mysql, \
     user-name="root", \
-    password="${env.MYSQL_ROOT_PASSWORD}", \
+    credential-reference={store=mysqlCS, alias=mysql-root-pw}, \
     enabled=true, \
     statistics-enabled=false, \
     background-validation=false)
@@ -24,7 +37,7 @@ embed-server --std-out=echo --server-config=standalone-full.xml
     connection-url="jdbc:mysql://mysql:3306/customer_mgmt?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC", \
     driver-name=mysql, \
     user-name="root", \
-    password="${env.MYSQL_ROOT_PASSWORD}", \
+    credential-reference={store=mysqlCS, alias=mysql-root-pw}, \
     enabled=true, \
     statistics-enabled=false, \
     background-validation=false)
@@ -35,7 +48,7 @@ embed-server --std-out=echo --server-config=standalone-full.xml
     connection-url="jdbc:mysql://mysql:3306/doctor_mgmt?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC", \
     driver-name=mysql, \
     user-name="root", \
-    password="${env.MYSQL_ROOT_PASSWORD}", \
+    credential-reference={store=mysqlCS, alias=mysql-root-pw}, \
     enabled=true, \
     statistics-enabled=false, \
     background-validation=false)
@@ -46,7 +59,7 @@ embed-server --std-out=echo --server-config=standalone-full.xml
     connection-url="jdbc:mysql://mysql:3306/schedule_mgmt?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC", \
     driver-name=mysql, \
     user-name="root", \
-    password="${env.MYSQL_ROOT_PASSWORD}", \
+    credential-reference={store=mysqlCS, alias=mysql-root-pw}, \
     enabled=true, \
     statistics-enabled=false, \
     background-validation=false)
@@ -57,7 +70,7 @@ embed-server --std-out=echo --server-config=standalone-full.xml
     connection-url="jdbc:mysql://mysql:3306/appointment_mgmt?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC", \
     driver-name=mysql, \
     user-name="root", \
-    password="${env.MYSQL_ROOT_PASSWORD}", \
+    credential-reference={store=mysqlCS, alias=mysql-root-pw}, \
     enabled=true, \
     statistics-enabled=false, \
     background-validation=false)
@@ -68,7 +81,7 @@ embed-server --std-out=echo --server-config=standalone-full.xml
     connection-url="jdbc:mysql://mysql:3306/audit_mgmt?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC", \
     driver-name=mysql, \
     user-name="root", \
-    password="${env.MYSQL_ROOT_PASSWORD}", \
+    credential-reference={store=mysqlCS, alias=mysql-root-pw}, \
     enabled=true, \
     statistics-enabled=false, \
     background-validation=false)
